@@ -1,27 +1,35 @@
-# Lead CRM – egyfájlos HTML MVP
+# Lead CRM – egyfájlos HTML + felhő mentés
 
 Indítás:
 - Nyisd meg az `index.html` fájlt böngészőben, vagy futtasd: `npm run dev`
 
-## Belépés és szerepkörök
+## Bejelentkezés
+- Demo admin: `admin` / `admin123`
+- Szerepkörök: `admin`, `advisor`, `lead_giver`
 
-- Alap admin felhasználó:
-  - felhasználónév: `admin`
-  - jelszó: `admin123`
-- Az admin tud felhasználókat létrehozni és jogosultságot adni (`admin`, `advisor`, `lead_giver`).
-- Lead adó saját leadeket lát és új leadet rögzít.
-- Tanácsadó és admin az összes leadet látja, és módosíthatja.
+## Admin funkciók
+- Felhasználó létrehozás (név, email, felhasználónév, jelszó, jogosultság)
+- Felhasználó adatmódosítás (inline szerkesztés + mentés)
+- Felhasználó törlés
 
-## Adatbázis mentés
+## Felhő adatbázis (Supabase)
+A felületen add meg:
+- Supabase URL
+- Supabase Anon Key
 
-- A demo a böngésző **LocalStorage** tárhelyére ment (`lead_manager_db_v2`).
-- Ez demo adatbázis: ugyanazon a böngészőn/gépen megmarad, de nem központi szerver.
+Szükséges táblák:
+- `users_app`
+- `leads_app`
+
+A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
+
+## Lead megjelenítés
+- Kompakt kártyák minden szerepkörnél
+- Kattintásra nyílik a részletes szerkesztés
 
 ## Letöltés
-
-- CSV és JSON export a lead listából.
-- A fájlok a böngésző alapértelmezett `Letöltések / Downloads` mappájába kerülnek.
+- CSV és JSON export
+- Letöltési mappa: böngésző alapértelmezett `Letöltések / Downloads`
 
 ## Dokumentáció
-
-- Részletes üzleti és funkcionális specifikáció: `SYSTEM_SPEC_HU.md`
+- Részletes specifikáció: `SYSTEM_SPEC_HU.md`
