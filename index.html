@@ -3,314 +3,359 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lead kezelő – egyfájlos HTML</title>
+  <title>Lead Manager – Admin + jogosultság + mentés</title>
   <style>
-    :root { font-family: Inter, system-ui, sans-serif; }
-    body { margin: 0; background: #f4f7fb; color: #1f2937; }
-    .wrap { max-width: 1100px; margin: 20px auto; padding: 0 14px 24px; }
-    .card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
-    .grid { display: grid; gap: 10px; }
-    .grid.two { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-    input, select, textarea, button { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid #cdd5e1; border-radius: 8px; }
-    textarea { min-height: 80px; }
-    button { background: #1d4ed8; color: white; border: 0; cursor: pointer; }
-    .lead { border: 1px solid #d4deef; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-    .lead.new { border-color: #dc2626; background: #fff1f2; }
-    .muted { color: #6b7280; font-size: 13px; }
-    .status-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e5edff; color: #1e40af; font-size: 12px; }
-    .danger-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 700; }
-    h1, h2, h3 { margin: 0 0 8px; }
-    label { display: grid; gap: 4px; }
+    :root { font-family: Inter, system-ui, sans-serif; color-scheme: light; }
+    body { margin: 0; background:#f3f6fb; color:#1f2937; }
+    .wrap { max-width: 1200px; margin: 20px auto; padding: 0 14px 28px; }
+    .card { background:#fff; border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+    .grid { display:grid; gap:10px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+    h1,h2,h3 { margin: 0 0 8px; }
+    .muted{ color:#6b7280; font-size:13px; }
+    label{ display:grid; gap:4px; }
+    input,select,textarea,button{ width:100%; box-sizing:border-box; padding:8px; font:inherit; border:1px solid #cfd6e3; border-radius:8px; }
+    button{ border:0; background:#1d4ed8; color:#fff; cursor:pointer; }
+    button.secondary{ background:#475569; }
+    button.danger{ background:#b91c1c; }
+    .lead{ border:1px solid #d6dfed; border-radius:10px; padding:12px; margin-bottom:10px; }
+    .lead.new{ border-color:#dc2626; background:#fff1f2; }
+    .badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; }
+    .badge.role{ background:#e5edff; color:#1e40af; }
+    .badge.new{ background:#fee2e2; color:#991b1b; font-weight:700; }
+    .right{ margin-left:auto; }
+    .hidden{ display:none !important; }
+    table{ width:100%; border-collapse: collapse; }
+    th,td{ border-bottom:1px solid #e5e7eb; padding:8px; text-align:left; font-size:14px; }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <div class="card">
-      <h1>Lead kezelő rendszer (egy HTML fájl)</h1>
-      <p class="muted">Lead adó csak a saját leadjeit látja, banki tanácsadó az összeset. A friss leadek pirosan jelennek meg.</p>
-      <div class="row">
-        <label>Szerepkör
-          <select id="roleSelect">
-            <option value="lead_giver">Lead adó</option>
-            <option value="advisor">Banki tanácsadó</option>
-          </select>
-        </label>
-        <label id="leadGiverWrap">Lead adó neve
-          <select id="leadGiverSelect"></select>
-        </label>
+<main class="wrap">
+  <section id="loginSection" class="card">
+    <h1>Belépés</h1>
+    <p class="muted">Alap admin: <b>admin</b> / <b>admin123</b></p>
+    <form id="loginForm" class="grid grid-2">
+      <label>Felhasználónév<input id="loginUsername" required></label>
+      <label>Jelszó<input id="loginPassword" type="password" required></label>
+      <div><button type="submit">Belépés</button></div>
+    </form>
+    <p id="loginMsg" class="muted"></p>
+  </section>
+
+  <section id="appSection" class="hidden">
+    <div class="card row">
+      <div>
+        <h1>Lead Manager</h1>
+        <p class="muted">Bejelentkezve: <b id="whoami"></b> <span id="roleBadge" class="badge role"></span></p>
       </div>
+      <button id="logoutBtn" class="secondary right">Kilépés</button>
     </div>
 
-    <section id="newLeadSection" class="card">
-      <h2>Új lead felvitel</h2>
-      <form id="leadForm" class="grid two">
-        <label>Ügyfél neve *<input id="customerName" required /></label>
-        <label>Érdeklődési kör *<select id="interest"></select></label>
-        <label>Telefonszám *<input id="phone" required /></label>
-        <label>Email (opcionális)<input id="email" type="email" /></label>
-        <div><button type="submit">Lead rögzítése</button></div>
+    <section id="adminSection" class="card hidden">
+      <h2>Admin felület – felhasználók kezelése</h2>
+      <form id="createUserForm" class="grid grid-3">
+        <label>Név<input id="newUserName" required></label>
+        <label>Felhasználónév<input id="newUsername" required></label>
+        <label>Jelszó<input id="newPassword" required></label>
+        <label>Szerepkör
+          <select id="newUserRole">
+            <option value="lead_giver">Lead adó</option>
+            <option value="advisor">Banki tanácsadó</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <div><button type="submit">Felhasználó létrehozása</button></div>
+      </form>
+      <h3>Felhasználók</h3>
+      <table id="usersTable"></table>
+    </section>
+
+    <section id="createLeadSection" class="card hidden">
+      <h2>Új lead felvitel (logikai sorrendben)</h2>
+      <form id="leadForm" class="grid grid-2">
+        <label>1) Ügyfél neve *<input id="customerName" required></label>
+        <label>2) Telefonszám *<input id="phone" required></label>
+        <label>3) E-mail<input id="email" type="email"></label>
+        <label>4) Érdeklődési kör *<select id="interest"></select></label>
+        <div><button type="submit">Lead mentése adatbázisba</button></div>
       </form>
     </section>
 
     <section class="card">
-      <div class="row" style="justify-content: space-between;">
-        <h2 id="listTitle">Saját leadjeim</h2>
+      <div class="row" style="justify-content:space-between;">
+        <h2 id="listTitle">Lead lista</h2>
         <div class="row">
-          <button type="button" id="downloadCsvBtn">Leadek letöltése (CSV)</button>
-          <button type="button" id="downloadJsonBtn">Leadek letöltése (JSON)</button>
+          <button id="downloadCsvBtn" type="button">CSV letöltés</button>
+          <button id="downloadJsonBtn" type="button">JSON letöltés</button>
         </div>
       </div>
-      <p class="muted">Letöltés helye: a böngésző alapértelmezett <b>Letöltések / Downloads</b> mappája (ha nincs egyedi mentési útvonal beállítva).</p>
+      <p class="muted">Mentés: böngésző LocalStorage (demo adatbázis). Letöltés: Letöltések mappa.</p>
       <div id="leadList"></div>
     </section>
-  </main>
+  </section>
+</main>
 
-  <script>
-    const interests = [
-      'Személyi kölcsön', 'Lakáshitel / jelzálog', 'Otthonstart', 'Munkáshitel', 'Számlanyitás',
-      'Vállalkozói számlanyitás', 'Vállalkozói hitel', 'Babaváró', 'CSOK Plusz',
-      'Szabadfelhasználású jelzáloghitel', 'Hitelkiváltás (egyhitel)', 'Falusi CSOK', 'Építési hitel / jelzálog'
-    ]
+<script>
+const DB_KEY = 'lead_manager_db_v2'
+const SESSION_KEY = 'lead_manager_session_v2'
 
-    const mortgageStatuses = [
-      'Információt megkapta', 'Ingatlant keres', 'Adásvételi szerződésre vár', 'Önerőt gyűjti', 'Beadás',
-      'Befogadás', 'Hiánypótlás', 'Bírálat', 'Jóváhagyás', 'Szerződéskötés', 'Folyósítás', 'Visszalépett',
-      'Elutasított', 'Nem felelt meg'
-    ]
+const interests = [
+  'Személyi kölcsön','Lakáshitel / jelzálog','Otthonstart','Munkáshitel','Számlanyitás','Vállalkozói számlanyitás',
+  'Vállalkozói hitel','Babaváró','CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog'
+]
 
-    const otherStatuses = [
-      'Információt megkapta', 'Nem felel meg (KO szűrés)', 'Lead átadva banknak',
-      'Banki ügyintézés', 'Visszalépett', 'Nem felelt meg BANK - elutasítva'
-    ]
+const mortgageStatuses = ['Információt megkapta','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti','Beadás','Befogadás','Hiánypótlás','Bírálat','Jóváhagyás','Szerződéskötés','Folyósítás','Visszalépett','Elutasított','Nem felelt meg']
+const otherStatuses = ['Információt megkapta','Nem felel meg (KO szűrés)','Lead átadva banknak','Banki ügyintézés','Visszalépett','Nem felelt meg BANK - elutasítva']
 
-    const leadGivers = ['Kovács Anna', 'Nagy Béla', 'Tóth Dóra']
-    const state = { role: 'lead_giver', currentLeadGiver: leadGivers[0], leads: [] }
+const byId = (id) => document.getElementById(id)
+const now = () => new Date().toLocaleString('hu-HU')
+const isMortgage = (s) => /jelzálog|Lakáshitel|Építési/i.test(s)
 
-    const byId = (id) => document.getElementById(id)
-    const now = () => new Date().toLocaleString('hu-HU')
-    const isMortgage = (interest) => /jelzálog|Lakáshitel|Építési/i.test(interest)
+let db = loadDb()
+let currentUser = loadSession()
 
-    function init() {
-      interests.forEach(i => byId('interest').add(new Option(i, i)))
-      leadGivers.forEach(lg => byId('leadGiverSelect').add(new Option(lg, lg)))
+function loadDb(){
+  const saved = localStorage.getItem(DB_KEY)
+  if(saved) return JSON.parse(saved)
+  const seed = {
+    users:[{id:crypto.randomUUID(), name:'Rendszer Admin', username:'admin', password:'admin123', role:'admin'}],
+    leads:[]
+  }
+  localStorage.setItem(DB_KEY, JSON.stringify(seed))
+  return seed
+}
+function saveDb(){ localStorage.setItem(DB_KEY, JSON.stringify(db)) }
+function loadSession(){
+  const id = localStorage.getItem(SESSION_KEY)
+  if(!id) return null
+  return db.users.find(u => u.id === id) || null
+}
+function setSession(user){
+  currentUser = user
+  if(user) localStorage.setItem(SESSION_KEY, user.id)
+  else localStorage.removeItem(SESSION_KEY)
+}
 
-      byId('roleSelect').addEventListener('change', (e) => {
-        state.role = e.target.value
-        render()
-      })
+function init(){
+  interests.forEach(i => byId('interest').add(new Option(i, i)))
 
-      byId('leadGiverSelect').addEventListener('change', (e) => {
-        state.currentLeadGiver = e.target.value
-        render()
-      })
+  byId('loginForm').addEventListener('submit', (e)=>{
+    e.preventDefault()
+    const username = byId('loginUsername').value.trim()
+    const password = byId('loginPassword').value
+    const user = db.users.find(u => u.username === username && u.password === password)
+    if(!user){ byId('loginMsg').textContent='Hibás belépési adatok.'; return }
+    setSession(user)
+    byId('loginForm').reset()
+    byId('loginMsg').textContent=''
+    render()
+  })
 
-      byId('leadForm').addEventListener('submit', (e) => {
-        e.preventDefault()
-        const customerName = byId('customerName').value.trim()
-        const interest = byId('interest').value
-        const phone = byId('phone').value.trim()
-        const email = byId('email').value.trim()
-        if (!customerName || !phone || !interest) return
+  byId('logoutBtn').onclick = () => { setSession(null); render() }
 
-        state.leads.unshift({
-          id: crypto.randomUUID(),
-          customerName, interest, phone, email,
-          leadGiver: state.currentLeadGiver,
-          isNew: true,
-          status: 'Információt megkapta',
-          statusDate: '',
-          processSuspended: false,
-          contactDone: false,
-          contactResult: '',
-          contactRecordedAt: '',
-          advisor: {
-            incomeType: '', otherLoans: '', creditCardOverdraft: '', loanAmount: '', term: '', installment: '',
-            note: '', birthDate: '', supportEligibility: '', purchaseInfo: '', ownFunds: '', khrStatus: '', coBorrower: ''
-          }
+  byId('createUserForm').addEventListener('submit', (e)=>{
+    e.preventDefault()
+    if(currentUser?.role !== 'admin') return
+    const username = byId('newUsername').value.trim()
+    if(db.users.some(u => u.username === username)){ alert('Ez a felhasználónév már létezik.'); return }
+    db.users.push({
+      id: crypto.randomUUID(),
+      name: byId('newUserName').value.trim(),
+      username,
+      password: byId('newPassword').value,
+      role: byId('newUserRole').value
+    })
+    saveDb(); e.target.reset(); render()
+  })
+
+  byId('leadForm').addEventListener('submit', (e)=>{
+    e.preventDefault()
+    if(!currentUser || !['lead_giver','admin'].includes(currentUser.role)) return
+    db.leads.unshift({
+      id: crypto.randomUUID(),
+      customerName: byId('customerName').value.trim(),
+      phone: byId('phone').value.trim(),
+      email: byId('email').value.trim(),
+      interest: byId('interest').value,
+      leadGiverId: currentUser.id,
+      leadGiverName: currentUser.name,
+      createdAt: now(),
+      isNew: true,
+      processSuspended: false,
+      contactDone: false,
+      contactResult: '',
+      contactRecordedAt: '',
+      status: 'Információt megkapta',
+      statusDate: '',
+      advisorData: {
+        submittedForName:'', incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
+        note:'', birthDate:'', supportEligibility:'', purchaseInfo:'', ownFunds:'', khrStatus:'', coBorrower:''
+      }
+    })
+    saveDb(); e.target.reset(); byId('interest').value = interests[0]; render()
+  })
+
+  byId('downloadCsvBtn').onclick = () => download('csv')
+  byId('downloadJsonBtn').onclick = () => download('json')
+
+  render()
+}
+
+function visibleLeads(){
+  if(!currentUser) return []
+  if(['admin','advisor'].includes(currentUser.role)) return db.leads
+  return db.leads.filter(l => l.leadGiverId === currentUser.id)
+}
+
+function canEditLead(){ return currentUser && ['admin','advisor'].includes(currentUser.role) }
+
+function render(){
+  const loggedIn = !!currentUser
+  byId('loginSection').classList.toggle('hidden', loggedIn)
+  byId('appSection').classList.toggle('hidden', !loggedIn)
+  if(!loggedIn) return
+
+  byId('whoami').textContent = `${currentUser.name} (${currentUser.username})`
+  byId('roleBadge').textContent = currentUser.role
+
+  byId('adminSection').classList.toggle('hidden', currentUser.role !== 'admin')
+  byId('createLeadSection').classList.toggle('hidden', !['lead_giver','admin'].includes(currentUser.role))
+
+  const titleMap = { admin:'Összes lead (admin)', advisor:'Összes lead (tanácsadó)', lead_giver:'Saját leadjeim' }
+  byId('listTitle').textContent = titleMap[currentUser.role] || 'Lead lista'
+
+  renderUsersTable()
+  renderLeads()
+}
+
+function renderUsersTable(){
+  if(currentUser?.role !== 'admin') return
+  const table = byId('usersTable')
+  const rows = db.users.map(u => `
+    <tr>
+      <td>${escapeHtml(u.name)}</td>
+      <td>${escapeHtml(u.username)}</td>
+      <td>${escapeHtml(u.role)}</td>
+      <td>${u.id === currentUser.id ? '-' : '<button data-del="'+u.id+'" class="danger">Törlés</button>'}</td>
+    </tr>
+  `).join('')
+  table.innerHTML = `<thead><tr><th>Név</th><th>Belépés</th><th>Jogosultság</th><th>Művelet</th></tr></thead><tbody>${rows}</tbody>`
+  table.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.del
+      db.users = db.users.filter(u => u.id !== id)
+      db.leads = db.leads.filter(l => l.leadGiverId !== id)
+      saveDb(); render()
+    }
+  })
+}
+
+function renderLeads(){
+  const list = byId('leadList')
+  const leads = visibleLeads()
+  list.innerHTML = leads.length ? '' : '<p class="muted">Nincs lead.</p>'
+
+  leads.forEach(lead => {
+    const card = document.createElement('article')
+    card.className = `lead ${lead.isNew && canEditLead() ? 'new' : ''}`
+    const statuses = isMortgage(lead.interest) ? mortgageStatuses : otherStatuses
+
+    card.innerHTML = `
+      <div class="row">
+        <h3>${escapeHtml(lead.customerName)}</h3>
+        ${lead.isNew && canEditLead() ? '<span class="badge new">FRISS</span>' : ''}
+      </div>
+      <p class="muted">Lead adó: ${escapeHtml(lead.leadGiverName)} • Létrehozva: ${escapeHtml(lead.createdAt)}</p>
+      <div class="grid grid-3">
+        <div><b>Telefon:</b> ${escapeHtml(lead.phone)}</div>
+        <div><b>Email:</b> ${escapeHtml(lead.email || '-')}</div>
+        <div><b>Érdeklődés:</b> ${escapeHtml(lead.interest)}</div>
+        <div><b>Státusz:</b> ${escapeHtml(lead.status)} ${lead.statusDate ? '('+escapeHtml(lead.statusDate)+')' : ''}</div>
+        <div><b>Felfüggesztve:</b> ${lead.processSuspended ? 'Igen' : 'Nem'}</div>
+        <div><b>Megkeresés:</b> ${lead.contactDone ? 'Igen' : 'Nem'} ${lead.contactRecordedAt ? '('+escapeHtml(lead.contactRecordedAt)+')' : ''}</div>
+      </div>
+    `
+
+    if(canEditLead()){
+      const edit = document.createElement('div')
+      edit.className='grid grid-2'
+      edit.innerHTML = `
+        <div><button data-open>Lead megnyitása</button></div>
+        <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
+        <label>Megkeresés eredménye <input data-f="contactResult" value="${escapeHtml(lead.contactResult)}"></label>
+        <label>Státusz <select data-f="status">${statuses.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
+        ${lead.status==='Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-f="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
+        <label>Folyamat felfüggesztve <input data-f="processSuspended" type="checkbox" ${lead.processSuspended?'checked':''}></label>
+
+        <label>Beadva kinek a nevére <input data-a="submittedForName" value="${escapeHtml(lead.advisorData.submittedForName)}"></label>
+        <label>Jövedelem és formája <input data-a="incomeType" value="${escapeHtml(lead.advisorData.incomeType)}"></label>
+        <label>Egyéb hitelek <input data-a="otherLoans" value="${escapeHtml(lead.advisorData.otherLoans)}"></label>
+        <label>Hitelkártya/folyószámla <input data-a="creditCardOverdraft" value="${escapeHtml(lead.advisorData.creditCardOverdraft)}"></label>
+        <label>Mekkora hitel kell <input data-a="loanAmount" value="${escapeHtml(lead.advisorData.loanAmount)}"></label>
+        <label>Mekkora futamidőre <input data-a="term" value="${escapeHtml(lead.advisorData.term)}"></label>
+        <label>Mekkora törlesztő <input data-a="installment" value="${escapeHtml(lead.advisorData.installment)}"></label>
+        <label>Születési dátum <input data-a="birthDate" type="date" value="${lead.advisorData.birthDate}"></label>
+        <label>Támogatásra alkalmasság <input data-a="supportEligibility" value="${escapeHtml(lead.advisorData.supportEligibility)}"></label>
+        <label>Hol vásárol / érték <input data-a="purchaseInfo" value="${escapeHtml(lead.advisorData.purchaseInfo)}"></label>
+        <label>Önerő mértéke <input data-a="ownFunds" value="${escapeHtml(lead.advisorData.ownFunds)}"></label>
+        <label>KHR státusz <input data-a="khrStatus" value="${escapeHtml(lead.advisorData.khrStatus)}"></label>
+        <label>Adóstárs lesz-e <input data-a="coBorrower" value="${escapeHtml(lead.advisorData.coBorrower)}"></label>
+        <label style="grid-column:1/-1;">Megjegyzés <textarea data-a="note">${escapeHtml(lead.advisorData.note)}</textarea></label>
+      `
+      edit.querySelector('[data-open]').onclick = () => { lead.isNew = false; saveDb(); render() }
+      edit.querySelectorAll('[data-f]').forEach(el => {
+        el.addEventListener('input', () => {
+          const k = el.dataset.f
+          if(el.type==='checkbox'){
+            lead[k] = el.checked
+            if(k==='contactDone') lead.contactRecordedAt = el.checked ? now() : ''
+          }else lead[k] = el.value
+          saveDb(); render()
         })
-
-        e.target.reset()
-        byId('interest').value = interests[0]
-        render()
       })
-
-      byId('downloadCsvBtn').addEventListener('click', () => {
-        const data = visibleLeads()
-        if (!data.length) return alert('Nincs letölthető lead.')
-        downloadFile(createCsv(data), `leadek-${fileDate()}.csv`, 'text/csv;charset=utf-8')
-        alert('A CSV fájl elindult letöltésre. Nézd meg a Letöltések (Downloads) mappát.')
+      edit.querySelectorAll('[data-a]').forEach(el => {
+        el.addEventListener('input', () => {
+          lead.advisorData[el.dataset.a] = el.value
+          saveDb()
+        })
       })
-
-      byId('downloadJsonBtn').addEventListener('click', () => {
-        const data = visibleLeads()
-        if (!data.length) return alert('Nincs letölthető lead.')
-        downloadFile(JSON.stringify(data, null, 2), `leadek-${fileDate()}.json`, 'application/json;charset=utf-8')
-        alert('A JSON fájl elindult letöltésre. Nézd meg a Letöltések (Downloads) mappát.')
-      })
-
-      render()
+      card.appendChild(edit)
     }
 
-    function visibleLeads() {
-      return state.role === 'advisor'
-        ? state.leads
-        : state.leads.filter(l => l.leadGiver === state.currentLeadGiver)
-    }
+    list.appendChild(card)
+  })
+}
 
-    function render() {
-      byId('leadGiverWrap').style.display = state.role === 'lead_giver' ? 'grid' : 'none'
-      byId('newLeadSection').style.display = state.role === 'lead_giver' ? 'block' : 'none'
-      byId('listTitle').textContent = state.role === 'advisor' ? 'Összes lead' : 'Saját leadjeim'
+function download(type){
+  const data = visibleLeads()
+  if(!data.length) return alert('Nincs letölthető lead.')
+  const stamp = fileDate()
+  if(type==='json') return downloadFile(JSON.stringify(data,null,2),`leadek-${stamp}.json`,'application/json;charset=utf-8')
+  const rows = data.map(l => ({
+    ugyfel:l.customerName, lead_ado:l.leadGiverName, telefon:l.phone, email:l.email||'', erdeklodes:l.interest, statusz:l.status,
+    statusz_datum:l.statusDate||'', felfuggesztve:l.processSuspended?'igen':'nem', megkereses:l.contactDone?'igen':'nem',
+    megkereses_eredmeny:l.contactResult||'', rogzitve:l.contactRecordedAt||'', jovedelem:l.advisorData.incomeType||'',
+    egyeb_hitelek:l.advisorData.otherLoans||'', khr:l.advisorData.khrStatus||'', megjegyzes:l.advisorData.note||''
+  }))
+  const headers = Object.keys(rows[0])
+  const csv = [headers.join(';'), ...rows.map(r => headers.map(h => csvEscape(r[h])).join(';'))].join('\n')
+  downloadFile(csv,`leadek-${stamp}.csv`,'text/csv;charset=utf-8')
+}
 
-      const list = byId('leadList')
-      list.innerHTML = ''
-      const leads = visibleLeads()
-      if (!leads.length) {
-        list.innerHTML = '<p class="muted">Nincs még lead.</p>'
-        return
-      }
+function fileDate(){
+  const d = new Date(); const p = (n)=>String(n).padStart(2,'0')
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`
+}
+function csvEscape(v){ const t=String(v??''); return /[;"\n]/.test(t) ? `"${t.replaceAll('"','""')}"` : t }
+function downloadFile(content, filename, mime){
+  const blob = new Blob([content], {type:mime}); const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+}
+function escapeHtml(text){ return String(text||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') }
 
-      leads.forEach(lead => {
-        const wrap = document.createElement('article')
-        wrap.className = `lead ${lead.isNew && state.role === 'advisor' ? 'new' : ''}`
-        const statuses = isMortgage(lead.interest) ? mortgageStatuses : otherStatuses
-
-        wrap.innerHTML = `
-          <h3>${lead.customerName}</h3>
-          <p class="muted">${lead.interest} • Lead adó: ${lead.leadGiver}</p>
-          ${lead.isNew && state.role === 'advisor' ? '<span class="danger-pill">FRISS LEAD</span>' : ''}
-          <p>Telefon: ${lead.phone}${lead.email ? ` | Email: ${lead.email}` : ''}</p>
-          <p>Státusz: <span class="status-pill">${lead.status}</span>${lead.statusDate ? ` (${lead.statusDate})` : ''}</p>
-          <p>Folyamat felfüggesztve: <b>${lead.processSuspended ? 'Igen' : 'Nem'}</b></p>
-        `
-
-        if (state.role === 'advisor') {
-          const panel = document.createElement('div')
-          panel.className = 'grid two'
-          panel.innerHTML = `
-            <div><button data-action="open">Lead megnyitása (piros törlése)</button></div>
-            <label>Megkeresés megtörtént <input data-field="contactDone" type="checkbox" ${lead.contactDone ? 'checked' : ''}></label>
-            <label>Megkeresés eredménye <input data-field="contactResult" value="${escapeHtml(lead.contactResult)}"></label>
-            <div class="muted">${lead.contactRecordedAt ? `Rögzítve: ${lead.contactRecordedAt}` : ''}</div>
-            <label>Státusz <select data-field="status">${statuses.map(s => `<option ${lead.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
-            ${lead.status === 'Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-field="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
-            <label>Folyamat felfüggesztve <input data-field="processSuspended" type="checkbox" ${lead.processSuspended ? 'checked' : ''}></label>
-            <label>Jövedelem és formája <input data-advisor="incomeType" value="${escapeHtml(lead.advisor.incomeType)}"></label>
-            <label>Egyéb hitelek <input data-advisor="otherLoans" value="${escapeHtml(lead.advisor.otherLoans)}"></label>
-            <label>Hitelkártya/folyószámla hitel <input data-advisor="creditCardOverdraft" value="${escapeHtml(lead.advisor.creditCardOverdraft)}"></label>
-            <label>Mekkora hitel kell <input data-advisor="loanAmount" value="${escapeHtml(lead.advisor.loanAmount)}"></label>
-            <label>Mekkora futamidőre <input data-advisor="term" value="${escapeHtml(lead.advisor.term)}"></label>
-            <label>Mekkora törlesztő <input data-advisor="installment" value="${escapeHtml(lead.advisor.installment)}"></label>
-            <label>Születési dátum <input data-advisor="birthDate" type="date" value="${lead.advisor.birthDate}"></label>
-            <label>Támogatásra való alkalmasság <input data-advisor="supportEligibility" value="${escapeHtml(lead.advisor.supportEligibility)}"></label>
-            <label>Hol vásárol, ingatlan értéke <input data-advisor="purchaseInfo" value="${escapeHtml(lead.advisor.purchaseInfo)}"></label>
-            <label>Önerő mértéke <input data-advisor="ownFunds" value="${escapeHtml(lead.advisor.ownFunds)}"></label>
-            <label>KHR státusz <input data-advisor="khrStatus" value="${escapeHtml(lead.advisor.khrStatus)}"></label>
-            <label>Adóstárs lesz-e <input data-advisor="coBorrower" value="${escapeHtml(lead.advisor.coBorrower)}"></label>
-            <label style="grid-column: 1 / -1;">Megjegyzés <textarea data-advisor="note">${escapeHtml(lead.advisor.note)}</textarea></label>
-          `
-
-          panel.querySelector('[data-action="open"]').onclick = () => {
-            lead.isNew = false
-            render()
-          }
-
-          panel.querySelectorAll('[data-field]').forEach(el => {
-            el.addEventListener('input', () => {
-              const key = el.dataset.field
-              if (el.type === 'checkbox') {
-                lead[key] = el.checked
-                if (key === 'contactDone') {
-                  lead.contactRecordedAt = el.checked ? now() : ''
-                }
-              } else {
-                lead[key] = el.value
-              }
-              render()
-            })
-          })
-
-          panel.querySelectorAll('[data-advisor]').forEach(el => {
-            el.addEventListener('input', () => {
-              lead.advisor[el.dataset.advisor] = el.value
-            })
-          })
-
-          wrap.appendChild(panel)
-        }
-
-        list.appendChild(wrap)
-      })
-    }
-
-    function escapeHtml(text) {
-      return String(text || '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;')
-    }
-
-    function createCsv(leads) {
-      const rows = leads.map((lead) => ({
-        ugyfel_nev: lead.customerName,
-        lead_ado: lead.leadGiver,
-        erdeklodes: lead.interest,
-        telefon: lead.phone,
-        email: lead.email || '',
-        statusz: lead.status,
-        statusz_datum: lead.statusDate || '',
-        felfuggesztve: lead.processSuspended ? 'igen' : 'nem',
-        megkereses_megtortent: lead.contactDone ? 'igen' : 'nem',
-        megkereses_eredmeny: lead.contactResult || '',
-        rogzitve: lead.contactRecordedAt || '',
-        jovedelem: lead.advisor?.incomeType || '',
-        egyeb_hitelek: lead.advisor?.otherLoans || '',
-        khr_statusz: lead.advisor?.khrStatus || '',
-        megjegyzes: lead.advisor?.note || ''
-      }))
-
-      const headers = Object.keys(rows[0])
-      const csvRows = [headers.join(';')]
-      rows.forEach((r) => {
-        csvRows.push(headers.map((h) => csvEscape(r[h])).join(';'))
-      })
-      return csvRows.join('\n')
-    }
-
-    function csvEscape(value) {
-      const text = String(value ?? '')
-      if (text.includes(';') || text.includes('"') || text.includes('\n')) {
-        return `"${text.replaceAll('"', '""')}"`
-      }
-      return text
-    }
-
-    function downloadFile(content, filename, mime) {
-      const blob = new Blob([content], { type: mime })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    }
-
-    function fileDate() {
-      const d = new Date()
-      const yyyy = d.getFullYear()
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
-      const dd = String(d.getDate()).padStart(2, '0')
-      const hh = String(d.getHours()).padStart(2, '0')
-      const mi = String(d.getMinutes()).padStart(2, '0')
-      return `${yyyy}${mm}${dd}-${hh}${mi}`
-    }
-
-    init()
-  </script>
+init()
+</script>
 </body>
 </html>
