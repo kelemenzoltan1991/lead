@@ -61,6 +61,7 @@
           <button type="button" id="downloadJsonBtn">Leadek letöltése (JSON)</button>
         </div>
       </div>
+      <p class="muted">Letöltés helye: a böngésző alapértelmezett <b>Letöltések / Downloads</b> mappája (ha nincs egyedi mentési útvonal beállítva).</p>
       <div id="leadList"></div>
     </section>
   </main>
@@ -138,12 +139,14 @@
         const data = visibleLeads()
         if (!data.length) return alert('Nincs letölthető lead.')
         downloadFile(createCsv(data), `leadek-${fileDate()}.csv`, 'text/csv;charset=utf-8')
+        alert('A CSV fájl elindult letöltésre. Nézd meg a Letöltések (Downloads) mappát.')
       })
 
       byId('downloadJsonBtn').addEventListener('click', () => {
         const data = visibleLeads()
         if (!data.length) return alert('Nincs letölthető lead.')
         downloadFile(JSON.stringify(data, null, 2), `leadek-${fileDate()}.json`, 'application/json;charset=utf-8')
+        alert('A JSON fájl elindult letöltésre. Nézd meg a Letöltések (Downloads) mappát.')
       })
 
       render()

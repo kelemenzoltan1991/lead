@@ -5,6 +5,7 @@ Indítás:
 
 A teljes demó egyetlen HTML fájlban van megvalósítva (inline CSS + inline JavaScript).
 Tartalmaz beépített letöltést is a lead listához (CSV és JSON).
+Letöltés után a fájlokat a böngésző alapértelmezett `Letöltések / Downloads` mappájában találod.
 
 ## Dokumentáció
 
