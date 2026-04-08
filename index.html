@@ -54,7 +54,13 @@
     </section>
 
     <section class="card">
-      <h2 id="listTitle">Saját leadjeim</h2>
+      <div class="row" style="justify-content: space-between;">
+        <h2 id="listTitle">Saját leadjeim</h2>
+        <div class="row">
+          <button type="button" id="downloadCsvBtn">Leadek letöltése (CSV)</button>
+          <button type="button" id="downloadJsonBtn">Leadek letöltése (JSON)</button>
+        </div>
+      </div>
       <div id="leadList"></div>
     </section>
   </main>
@@ -126,6 +132,18 @@
         e.target.reset()
         byId('interest').value = interests[0]
         render()
+      })
+
+      byId('downloadCsvBtn').addEventListener('click', () => {
+        const data = visibleLeads()
+        if (!data.length) return alert('Nincs letölthető lead.')
+        downloadFile(createCsv(data), `leadek-${fileDate()}.csv`, 'text/csv;charset=utf-8')
+      })
+
+      byId('downloadJsonBtn').addEventListener('click', () => {
+        const data = visibleLeads()
+        if (!data.length) return alert('Nincs letölthető lead.')
+        downloadFile(JSON.stringify(data, null, 2), `leadek-${fileDate()}.json`, 'application/json;charset=utf-8')
       })
 
       render()
@@ -230,6 +248,63 @@
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#39;')
+    }
+
+    function createCsv(leads) {
+      const rows = leads.map((lead) => ({
+        ugyfel_nev: lead.customerName,
+        lead_ado: lead.leadGiver,
+        erdeklodes: lead.interest,
+        telefon: lead.phone,
+        email: lead.email || '',
+        statusz: lead.status,
+        statusz_datum: lead.statusDate || '',
+        felfuggesztve: lead.processSuspended ? 'igen' : 'nem',
+        megkereses_megtortent: lead.contactDone ? 'igen' : 'nem',
+        megkereses_eredmeny: lead.contactResult || '',
+        rogzitve: lead.contactRecordedAt || '',
+        jovedelem: lead.advisor?.incomeType || '',
+        egyeb_hitelek: lead.advisor?.otherLoans || '',
+        khr_statusz: lead.advisor?.khrStatus || '',
+        megjegyzes: lead.advisor?.note || ''
+      }))
+
+      const headers = Object.keys(rows[0])
+      const csvRows = [headers.join(';')]
+      rows.forEach((r) => {
+        csvRows.push(headers.map((h) => csvEscape(r[h])).join(';'))
+      })
+      return csvRows.join('\n')
+    }
+
+    function csvEscape(value) {
+      const text = String(value ?? '')
+      if (text.includes(';') || text.includes('"') || text.includes('\n')) {
+        return `"${text.replaceAll('"', '""')}"`
+      }
+      return text
+    }
+
+    function downloadFile(content, filename, mime) {
+      const blob = new Blob([content], { type: mime })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    }
+
+    function fileDate() {
+      const d = new Date()
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mi = String(d.getMinutes()).padStart(2, '0')
+      return `${yyyy}${mm}${dd}-${hh}${mi}`
     }
 
     init()
