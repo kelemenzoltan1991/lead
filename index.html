@@ -1,1 +1,238 @@
-<!doctype html><html lang='hu'><head><meta charset='UTF-8'/><meta name='viewport' content='width=device-width, initial-scale=1.0'/><title>Lead CRM</title></head><body><div id='root'></div><script type='module' src='/src/main.jsx'></script></body></html>
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead kezelő – egyfájlos HTML</title>
+  <style>
+    :root { font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #f4f7fb; color: #1f2937; }
+    .wrap { max-width: 1100px; margin: 20px auto; padding: 0 14px 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+    .grid { display: grid; gap: 10px; }
+    .grid.two { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    input, select, textarea, button { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid #cdd5e1; border-radius: 8px; }
+    textarea { min-height: 80px; }
+    button { background: #1d4ed8; color: white; border: 0; cursor: pointer; }
+    .lead { border: 1px solid #d4deef; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .lead.new { border-color: #dc2626; background: #fff1f2; }
+    .muted { color: #6b7280; font-size: 13px; }
+    .status-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e5edff; color: #1e40af; font-size: 12px; }
+    .danger-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 700; }
+    h1, h2, h3 { margin: 0 0 8px; }
+    label { display: grid; gap: 4px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="card">
+      <h1>Lead kezelő rendszer (egy HTML fájl)</h1>
+      <p class="muted">Lead adó csak a saját leadjeit látja, banki tanácsadó az összeset. A friss leadek pirosan jelennek meg.</p>
+      <div class="row">
+        <label>Szerepkör
+          <select id="roleSelect">
+            <option value="lead_giver">Lead adó</option>
+            <option value="advisor">Banki tanácsadó</option>
+          </select>
+        </label>
+        <label id="leadGiverWrap">Lead adó neve
+          <select id="leadGiverSelect"></select>
+        </label>
+      </div>
+    </div>
+
+    <section id="newLeadSection" class="card">
+      <h2>Új lead felvitel</h2>
+      <form id="leadForm" class="grid two">
+        <label>Ügyfél neve *<input id="customerName" required /></label>
+        <label>Érdeklődési kör *<select id="interest"></select></label>
+        <label>Telefonszám *<input id="phone" required /></label>
+        <label>Email (opcionális)<input id="email" type="email" /></label>
+        <div><button type="submit">Lead rögzítése</button></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2 id="listTitle">Saját leadjeim</h2>
+      <div id="leadList"></div>
+    </section>
+  </main>
+
+  <script>
+    const interests = [
+      'Személyi kölcsön', 'Lakáshitel / jelzálog', 'Otthonstart', 'Munkáshitel', 'Számlanyitás',
+      'Vállalkozói számlanyitás', 'Vállalkozói hitel', 'Babaváró', 'CSOK Plusz',
+      'Szabadfelhasználású jelzáloghitel', 'Hitelkiváltás (egyhitel)', 'Falusi CSOK', 'Építési hitel / jelzálog'
+    ]
+
+    const mortgageStatuses = [
+      'Információt megkapta', 'Ingatlant keres', 'Adásvételi szerződésre vár', 'Önerőt gyűjti', 'Beadás',
+      'Befogadás', 'Hiánypótlás', 'Bírálat', 'Jóváhagyás', 'Szerződéskötés', 'Folyósítás', 'Visszalépett',
+      'Elutasított', 'Nem felelt meg'
+    ]
+
+    const otherStatuses = [
+      'Információt megkapta', 'Nem felel meg (KO szűrés)', 'Lead átadva banknak',
+      'Banki ügyintézés', 'Visszalépett', 'Nem felelt meg BANK - elutasítva'
+    ]
+
+    const leadGivers = ['Kovács Anna', 'Nagy Béla', 'Tóth Dóra']
+    const state = { role: 'lead_giver', currentLeadGiver: leadGivers[0], leads: [] }
+
+    const byId = (id) => document.getElementById(id)
+    const now = () => new Date().toLocaleString('hu-HU')
+    const isMortgage = (interest) => /jelzálog|Lakáshitel|Építési/i.test(interest)
+
+    function init() {
+      interests.forEach(i => byId('interest').add(new Option(i, i)))
+      leadGivers.forEach(lg => byId('leadGiverSelect').add(new Option(lg, lg)))
+
+      byId('roleSelect').addEventListener('change', (e) => {
+        state.role = e.target.value
+        render()
+      })
+
+      byId('leadGiverSelect').addEventListener('change', (e) => {
+        state.currentLeadGiver = e.target.value
+        render()
+      })
+
+      byId('leadForm').addEventListener('submit', (e) => {
+        e.preventDefault()
+        const customerName = byId('customerName').value.trim()
+        const interest = byId('interest').value
+        const phone = byId('phone').value.trim()
+        const email = byId('email').value.trim()
+        if (!customerName || !phone || !interest) return
+
+        state.leads.unshift({
+          id: crypto.randomUUID(),
+          customerName, interest, phone, email,
+          leadGiver: state.currentLeadGiver,
+          isNew: true,
+          status: 'Információt megkapta',
+          statusDate: '',
+          processSuspended: false,
+          contactDone: false,
+          contactResult: '',
+          contactRecordedAt: '',
+          advisor: {
+            incomeType: '', otherLoans: '', creditCardOverdraft: '', loanAmount: '', term: '', installment: '',
+            note: '', birthDate: '', supportEligibility: '', purchaseInfo: '', ownFunds: '', khrStatus: '', coBorrower: ''
+          }
+        })
+
+        e.target.reset()
+        byId('interest').value = interests[0]
+        render()
+      })
+
+      render()
+    }
+
+    function visibleLeads() {
+      return state.role === 'advisor'
+        ? state.leads
+        : state.leads.filter(l => l.leadGiver === state.currentLeadGiver)
+    }
+
+    function render() {
+      byId('leadGiverWrap').style.display = state.role === 'lead_giver' ? 'grid' : 'none'
+      byId('newLeadSection').style.display = state.role === 'lead_giver' ? 'block' : 'none'
+      byId('listTitle').textContent = state.role === 'advisor' ? 'Összes lead' : 'Saját leadjeim'
+
+      const list = byId('leadList')
+      list.innerHTML = ''
+      const leads = visibleLeads()
+      if (!leads.length) {
+        list.innerHTML = '<p class="muted">Nincs még lead.</p>'
+        return
+      }
+
+      leads.forEach(lead => {
+        const wrap = document.createElement('article')
+        wrap.className = `lead ${lead.isNew && state.role === 'advisor' ? 'new' : ''}`
+        const statuses = isMortgage(lead.interest) ? mortgageStatuses : otherStatuses
+
+        wrap.innerHTML = `
+          <h3>${lead.customerName}</h3>
+          <p class="muted">${lead.interest} • Lead adó: ${lead.leadGiver}</p>
+          ${lead.isNew && state.role === 'advisor' ? '<span class="danger-pill">FRISS LEAD</span>' : ''}
+          <p>Telefon: ${lead.phone}${lead.email ? ` | Email: ${lead.email}` : ''}</p>
+          <p>Státusz: <span class="status-pill">${lead.status}</span>${lead.statusDate ? ` (${lead.statusDate})` : ''}</p>
+          <p>Folyamat felfüggesztve: <b>${lead.processSuspended ? 'Igen' : 'Nem'}</b></p>
+        `
+
+        if (state.role === 'advisor') {
+          const panel = document.createElement('div')
+          panel.className = 'grid two'
+          panel.innerHTML = `
+            <div><button data-action="open">Lead megnyitása (piros törlése)</button></div>
+            <label>Megkeresés megtörtént <input data-field="contactDone" type="checkbox" ${lead.contactDone ? 'checked' : ''}></label>
+            <label>Megkeresés eredménye <input data-field="contactResult" value="${escapeHtml(lead.contactResult)}"></label>
+            <div class="muted">${lead.contactRecordedAt ? `Rögzítve: ${lead.contactRecordedAt}` : ''}</div>
+            <label>Státusz <select data-field="status">${statuses.map(s => `<option ${lead.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+            ${lead.status === 'Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-field="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
+            <label>Folyamat felfüggesztve <input data-field="processSuspended" type="checkbox" ${lead.processSuspended ? 'checked' : ''}></label>
+            <label>Jövedelem és formája <input data-advisor="incomeType" value="${escapeHtml(lead.advisor.incomeType)}"></label>
+            <label>Egyéb hitelek <input data-advisor="otherLoans" value="${escapeHtml(lead.advisor.otherLoans)}"></label>
+            <label>Hitelkártya/folyószámla hitel <input data-advisor="creditCardOverdraft" value="${escapeHtml(lead.advisor.creditCardOverdraft)}"></label>
+            <label>Mekkora hitel kell <input data-advisor="loanAmount" value="${escapeHtml(lead.advisor.loanAmount)}"></label>
+            <label>Mekkora futamidőre <input data-advisor="term" value="${escapeHtml(lead.advisor.term)}"></label>
+            <label>Mekkora törlesztő <input data-advisor="installment" value="${escapeHtml(lead.advisor.installment)}"></label>
+            <label>Születési dátum <input data-advisor="birthDate" type="date" value="${lead.advisor.birthDate}"></label>
+            <label>Támogatásra való alkalmasság <input data-advisor="supportEligibility" value="${escapeHtml(lead.advisor.supportEligibility)}"></label>
+            <label>Hol vásárol, ingatlan értéke <input data-advisor="purchaseInfo" value="${escapeHtml(lead.advisor.purchaseInfo)}"></label>
+            <label>Önerő mértéke <input data-advisor="ownFunds" value="${escapeHtml(lead.advisor.ownFunds)}"></label>
+            <label>KHR státusz <input data-advisor="khrStatus" value="${escapeHtml(lead.advisor.khrStatus)}"></label>
+            <label>Adóstárs lesz-e <input data-advisor="coBorrower" value="${escapeHtml(lead.advisor.coBorrower)}"></label>
+            <label style="grid-column: 1 / -1;">Megjegyzés <textarea data-advisor="note">${escapeHtml(lead.advisor.note)}</textarea></label>
+          `
+
+          panel.querySelector('[data-action="open"]').onclick = () => {
+            lead.isNew = false
+            render()
+          }
+
+          panel.querySelectorAll('[data-field]').forEach(el => {
+            el.addEventListener('input', () => {
+              const key = el.dataset.field
+              if (el.type === 'checkbox') {
+                lead[key] = el.checked
+                if (key === 'contactDone') {
+                  lead.contactRecordedAt = el.checked ? now() : ''
+                }
+              } else {
+                lead[key] = el.value
+              }
+              render()
+            })
+          })
+
+          panel.querySelectorAll('[data-advisor]').forEach(el => {
+            el.addEventListener('input', () => {
+              lead.advisor[el.dataset.advisor] = el.value
+            })
+          })
+
+          wrap.appendChild(panel)
+        }
+
+        list.appendChild(wrap)
+      })
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;')
+    }
+
+    init()
+  </script>
+</body>
+</html>

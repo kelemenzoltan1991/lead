@@ -1,5 +1,10 @@
-# Lead CRM – React + Supabase
+# Lead CRM – egyfájlos HTML MVP
 
-Telepítés: npm i, cp .env.example .env, npm run dev
-DB: futtasd a supabase/sql/schema.sql fájlt.
-Function: supabase/functions/notify/index.ts tartalmát töltsd fel 'notify' néven.
+Indítás:
+- Nyisd meg az `index.html` fájlt böngészőben, vagy futtasd: `npm run dev`
+
+A teljes demó egyetlen HTML fájlban van megvalósítva (inline CSS + inline JavaScript).
+
+## Dokumentáció
+
+- Részletes üzleti és funkcionális specifikáció: `SYSTEM_SPEC_HU.md`
