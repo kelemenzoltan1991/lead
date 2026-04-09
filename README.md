@@ -25,6 +25,7 @@ Szükséges táblák:
 - `users_app`
 - `leads_app`
 - Táblák és demo policy létrehozás: futtasd a `supabase/sql/schema.sql` fájlt a Supabase SQL Editorban.
+- Admin user seed (`admin` / `admin123`): futtasd a `supabase/sql/seed_admin.sql` fájlt.
 
 A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
 
