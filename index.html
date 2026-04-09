@@ -68,6 +68,7 @@
         <p id="cloudMsg" class="muted"></p>
         <ul class="muted">
           <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
+          <li>Ha HTTP 401 hiba jön: a kulcs/projekt nem stimmel, vagy hiányzik a tábla policy jogosultság.</li>
           <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
         </ul>
       </section>
@@ -164,18 +165,8 @@
     async function testCloudConnection(){
       const err = validateCloudConfig(cloudCfg)
       if(err) throw new Error(err)
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 10000)
-      try {
-        const res = await fetch(`${cloudCfg.url}/rest/v1/`, {
-          method: 'GET',
-          headers: { apikey: cloudCfg.key },
-          signal: controller.signal
-        })
-        if(!res.ok) throw new Error(`Supabase REST hiba: HTTP ${res.status}`)
-      } finally {
-        clearTimeout(timeout)
-      }
+      const probe = await supabaseClient.from('users_app').select('id').limit(1)
+      if(probe.error) throw probe.error
     }
 
     function validateCloudConfig(cfg){
@@ -202,7 +193,6 @@
       if(!supabaseClient) return
       setCloudMsg('Felhő mentés folyamatban...')
       try {
-        await testCloudConnection()
         await supabaseClient.from('users_app').delete().neq('id', '')
         await supabaseClient.from('leads_app').delete().neq('id', '')
         if(db.users.length) await supabaseClient.from('users_app').insert(db.users)
@@ -217,7 +207,6 @@
       if(!supabaseClient) return setCloudMsg('Előbb kapcsolódj a felhőhöz.')
       setCloudMsg('Felhőből betöltés...')
       try {
-        await testCloudConnection()
         const u = await supabaseClient.from('users_app').select('*')
         const l = await supabaseClient.from('leads_app').select('*')
         if(u.error) throw u.error
@@ -498,6 +487,9 @@
     function formatCloudError(prefix, error){
       if(error?.name === 'AbortError') return `${prefix} hiba: időtúllépés (ellenőrizd a hálózatot és a Supabase URL-t).`
       if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
+      if(error?.status === 401 || String(error?.message || '').includes('401')) {
+        return `${prefix} hiba: HTTP 401 (jogosultság/kulcs hiba). Ellenőrizd, hogy a kulcs az adott projekthez tartozik, és a users_app / leads_app táblákra vannak policy-k.`
+      }
       return `${prefix} hiba: ${error?.message || error}`
     }
 

@@ -29,6 +29,7 @@ A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felh�
 Hibaelhárítás:
 - `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
 - Ha céges hálózatot/VPN-t használsz, lehet hogy blokkolja a Supabase végpontot.
+- `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
 
 ## Lead megjelenítés
 - Kompakt kártyák minden szerepkörnél
