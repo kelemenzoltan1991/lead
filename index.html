@@ -143,6 +143,7 @@
     let expandedLeadId = null
     let cloudCfg = loadCloudCfg()
     let supabaseClient = null
+    let supabaseSig = ''
 
     function loadDb(){
       const raw = localStorage.getItem(DB_KEY)
@@ -174,13 +175,17 @@
       const err = validateCloudConfig(cloudCfg)
       if(err) { setCloudMsg(err); return null }
       if(!window.supabase?.createClient){ setCloudMsg('A Supabase kliens nem töltődött be.'); return null }
+      const newSig = `${cloudCfg.url}|${cloudCfg.key.trim()}`
+      if(supabaseClient && supabaseSig === newSig) return supabaseClient
       supabaseClient = window.supabase.createClient(cloudCfg.url, cloudCfg.key.trim(), {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
-          detectSessionInUrl: false
+          detectSessionInUrl: false,
+          storageKey: 'lead-manager-noauth'
         }
       })
+      supabaseSig = newSig
       return supabaseClient
     }
 
@@ -215,10 +220,14 @@
       if(!supabaseClient) return
       setCloudMsg('Felhő mentés folyamatban...')
       try {
-        await supabaseClient.from('users_app').delete().neq('id', '')
-        await supabaseClient.from('leads_app').delete().neq('id', '')
-        if(db.users.length) await supabaseClient.from('users_app').insert(db.users)
-        if(db.leads.length) await supabaseClient.from('leads_app').insert(db.leads)
+        if(db.users.length) {
+          const r1 = await supabaseClient.from('users_app').upsert(db.users, { onConflict: 'username' })
+          if(r1.error) throw r1.error
+        }
+        if(db.leads.length) {
+          const r2 = await supabaseClient.from('leads_app').upsert(db.leads, { onConflict: 'id' })
+          if(r2.error) throw r2.error
+        }
         setCloudMsg('Felhő mentés kész.')
       } catch (e) {
         setCloudMsg(formatCloudError('Felhő mentés', e))
@@ -516,6 +525,12 @@
       if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
       if(error?.status === 401 || String(error?.message || '').includes('401')) {
         return `${prefix} hiba: HTTP 401 (jogosultság/kulcs hiba). Ellenőrizd, hogy a kulcs az adott projekthez tartozik, és a users_app / leads_app táblákra vannak policy-k.`
+      }
+      if(error?.status === 400 || String(error?.message || '').includes('400')) {
+        return `${prefix} hiba: HTTP 400 (hibás lekérdezés). Frissítve lett upsert mentésre; töltsd újra a legfrissebb fájlt és próbáld újra.`
+      }
+      if(error?.status === 409 || String(error?.message || '').includes('409')) {
+        return `${prefix} hiba: HTTP 409 (ütközés). Ellenőrizd, hogy az egyedi mezők (pl. username) nem duplikáltak.`
       }
       if(String(error?.message || '').includes("Could not find the table 'public.users_app'")) {
         return `${prefix} hiba: hiányzik a public.users_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`

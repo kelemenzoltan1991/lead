@@ -32,6 +32,7 @@ Szükséges táblák:
 - Admin user seed (`admin` / `admin123`): futtasd a `supabase/sql/seed_admin.sql` fájlt.
 
 A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
+Cloud mentés módja: `upsert` (nem teljes tábla törlés), így elkerülhető a 400-as `id=neq.` hiba.
 
 Hibaelhárítás:
 - `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
