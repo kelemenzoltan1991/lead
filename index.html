@@ -507,10 +507,10 @@
       if(error?.status === 401 || String(error?.message || '').includes('401')) {
         return `${prefix} hiba: HTTP 401 (jogosultság/kulcs hiba). Ellenőrizd, hogy a kulcs az adott projekthez tartozik, és a users_app / leads_app táblákra vannak policy-k.`
       }
-      if(String(error?.message || '').includes(\"Could not find the table 'public.users_app'\")) {
+      if(String(error?.message || '').includes("Could not find the table 'public.users_app'")) {
         return `${prefix} hiba: hiányzik a public.users_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`
       }
-      if(String(error?.message || '').includes(\"Could not find the table 'public.leads_app'\")) {
+      if(String(error?.message || '').includes("Could not find the table 'public.leads_app'")) {
         return `${prefix} hiba: hiányzik a public.leads_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`
       }
       return `${prefix} hiba: ${error?.message || error}`
