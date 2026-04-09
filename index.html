@@ -59,7 +59,7 @@
         <p class="muted">Adj meg Supabase adatokat. Táblák: <b>users_app</b>, <b>leads_app</b>. Mentéskor felhőbe is szinkronizál.</p>
         <div class="grid grid-2">
           <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
-          <label>Anon Key<input id="sbKey" placeholder="eyJ..." ></label>
+          <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
           <div class="row">
             <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
             <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
@@ -169,7 +169,7 @@
       try {
         const res = await fetch(`${cloudCfg.url}/rest/v1/`, {
           method: 'GET',
-          headers: { apikey: cloudCfg.key, Authorization: `Bearer ${cloudCfg.key}` },
+          headers: { apikey: cloudCfg.key },
           signal: controller.signal
         })
         if(!res.ok) throw new Error(`Supabase REST hiba: HTTP ${res.status}`)
@@ -179,9 +179,23 @@
     }
 
     function validateCloudConfig(cfg){
-      if(!cfg.url || !cfg.key) return 'Adj meg Supabase URL + Anon Key értéket.'
+      if(!cfg.key) return 'Adj meg Supabase Anon / Publishable Key értéket.'
+      if(!cfg.url){
+        const inferred = inferUrlFromPublishableKey(cfg.key)
+        if(inferred){
+          cfg.url = inferred
+          byId('sbUrl').value = inferred
+        }
+      }
+      if(!cfg.url) return 'Adj meg Supabase URL-t (vagy használj sb_publishable_... kulcsot, amiből URL következtethető).'
       if(!/^https:\/\//i.test(cfg.url)) return 'A Supabase URL-nek https:// formátumúnak kell lennie.'
       return ''
+    }
+
+    function inferUrlFromPublishableKey(key){
+      const m = String(key || '').match(/^sb_publishable_([A-Za-z0-9]+)_/)
+      if(!m) return ''
+      return `https://${m[1]}.supabase.co`
     }
 
     async function saveDbCloud(){

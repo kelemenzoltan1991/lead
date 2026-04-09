@@ -15,7 +15,10 @@ Indítás:
 ## Felhő adatbázis (Supabase)
 A felületen add meg:
 - Supabase URL
-- Supabase Anon Key
+- Supabase Anon vagy Publishable Key (`sb_publishable_...` is jó)
+
+Megjegyzés:
+- Ha `sb_publishable_...` kulcsot adsz meg és az URL üres, a rendszer megpróbálja automatikusan kitölteni a Supabase URL-t.
 
 Szükséges táblák:
 - `users_app`
