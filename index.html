@@ -61,6 +61,7 @@
         <div class="grid grid-2">
           <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
           <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
+          <label style="grid-column: 1 / -1;">Notify endpoint URL (opcionális)<input id="notifyUrl" placeholder="https://.../functions/v1/notify"></label>
           <div class="row">
             <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
             <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
@@ -127,6 +128,7 @@
     const CLOUD_KEY = 'lead_manager_cloud_v3'
     const DEFAULT_SUPABASE_URL = 'https://mckusqwbatbehouwiwba.supabase.co'
     const DEFAULT_SUPABASE_KEY = 'sb_publishable_QNIwahIgtsN570YMq670dg_5ibVC-b3'
+    const DEFAULT_NOTIFY_URL = `${DEFAULT_SUPABASE_URL}/functions/v1/notify`
 
     const interests = [
       'Személyi kölcsön','Lakáshitel / jelzálog','Otthonstart','Munkáshitel','Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel','Babaváró','CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog'
@@ -158,11 +160,12 @@
 
     function loadCloudCfg(){
       const raw = localStorage.getItem(CLOUD_KEY)
-      if(!raw) return {url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_KEY}
+      if(!raw) return {url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_KEY, notifyUrl: DEFAULT_NOTIFY_URL}
       const parsed = JSON.parse(raw)
       return {
         url: parsed.url || DEFAULT_SUPABASE_URL,
-        key: parsed.key || DEFAULT_SUPABASE_KEY
+        key: parsed.key || DEFAULT_SUPABASE_KEY,
+        notifyUrl: parsed.notifyUrl || DEFAULT_NOTIFY_URL
       }
     }
     function saveCloudCfg(){ localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCfg)) }
@@ -294,12 +297,48 @@
       }
     }
 
+    async function notifyAdvisorsForNewLead(lead){
+      try {
+        if(!initSupabase()) return
+        const advisorRes = await supabaseClient.from('users_app').select('email,name').eq('role', 'advisor')
+        if(advisorRes.error) throw advisorRes.error
+        const advisors = (advisorRes.data || []).filter(a => a.email).map(a => ({ email: a.email, name: a.name || '' }))
+        if(!advisors.length) return
+
+        const endpoint = cloudCfg.notifyUrl || `${cloudCfg.url}/functions/v1/notify`
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: cloudCfg.key,
+            Authorization: `Bearer ${cloudCfg.key}`
+          },
+          body: JSON.stringify({
+            event: 'new_lead',
+            advisors,
+            lead: {
+              customerName: lead.customerName,
+              phone: lead.phone,
+              email: lead.email || '',
+              interest: lead.interest,
+              leadGiverName: lead.leadGiverName,
+              createdAt: lead.createdAt
+            }
+          })
+        })
+        if(!res.ok) setCloudMsg(`Figyelem: email notify hívás sikertelen (HTTP ${res.status}).`)
+      } catch (e) {
+        setCloudMsg(`Figyelem: email notify hiba: ${e?.message || e}`)
+      }
+    }
+
     function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
 
     function init(){
       interests.forEach(i => byId('interest').add(new Option(i, i)))
       byId('sbUrl').value = cloudCfg.url || ''
       byId('sbKey').value = cloudCfg.key || ''
+      byId('notifyUrl').value = cloudCfg.notifyUrl || DEFAULT_NOTIFY_URL
       if(location.protocol === 'file:') {
         byId('protocolMsg').textContent = 'Figyelem: file:// módban a böngésző blokkolhatja a felhő kéréseket. Indítsd inkább npm run dev-vel.'
         byId('cloudConnectBtn').disabled = true
@@ -345,6 +384,7 @@
       byId('cloudConnectBtn').onclick = async () => {
         cloudCfg.url = byId('sbUrl').value.trim().replace(/\/+$/, '')
         cloudCfg.key = byId('sbKey').value.trim()
+        cloudCfg.notifyUrl = byId('notifyUrl').value.trim() || `${cloudCfg.url}/functions/v1/notify`
         saveCloudCfg()
         if(initSupabase()){
           try {
@@ -376,7 +416,7 @@
       byId('leadForm').addEventListener('submit', async (e)=>{
         e.preventDefault()
         if(!currentUser || !['lead_giver','admin'].includes(currentUser.role)) return
-        db.leads.unshift({
+        const newLead = {
           id: crypto.randomUUID(),
           customerName: byId('customerName').value.trim(),
           phone: byId('phone').value.trim(),
@@ -396,8 +436,11 @@
             submittedForName:'', incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
             note:'', birthDate:'', supportEligibility:'', purchaseInfo:'', ownFunds:'', khrStatus:'', coBorrower:''
           }
-        })
-        await persist(); e.target.reset(); byId('interest').value = interests[0]; render()
+        }
+        db.leads.unshift(newLead)
+        await persist()
+        await notifyAdvisorsForNewLead(newLead)
+        e.target.reset(); byId('interest').value = interests[0]; render()
       })
 
       byId('downloadCsvBtn').onclick = () => download('csv')

@@ -21,6 +21,7 @@ Indítás:
 A felületen add meg:
 - Supabase URL
 - Supabase Anon vagy Publishable Key (`sb_publishable_...` is jó)
+- Notify endpoint URL (opcionális), alapértelmezésben: `${SUPABASE_URL}/functions/v1/notify`
 
 Megjegyzés:
 - A projekt alapból beégetett Supabase adatokkal indul:
@@ -38,6 +39,15 @@ Szükséges táblák:
 
 A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
 Cloud mentés módja: `upsert` (nem teljes tábla törlés), így elkerülhető a 400-as `id=neq.` hiba.
+Új lead rögzítésénél a rendszer megpróbál email notify hívást küldeni az advisor role-os userek email címeire.
+
+Notify function deploy:
+- Kód: `supabase/functions/notify/index.ts`
+- Szükséges env:
+  - `RESEND_API_KEY`
+  - `NOTIFY_FROM_EMAIL`
+- Deploy példa:
+  - `supabase functions deploy notify`
 
 Hibaelhárítás:
 - `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
