@@ -1,1 +1,507 @@
-<!doctype html><html lang='hu'><head><meta charset='UTF-8'/><meta name='viewport' content='width=device-width, initial-scale=1.0'/><title>Lead CRM</title></head><body><div id='root'></div><script type='module' src='/src/main.jsx'></script></body></html>
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Manager – Felhő mentés + Admin</title>
+  <style>
+    :root { font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #f3f6fb; color: #1f2937; }
+    .wrap { max-width: 1200px; margin: 18px auto; padding: 0 12px 24px; }
+    .card { background:#fff; border-radius:12px; padding:12px; margin-bottom:10px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+    .grid { display:grid; gap:8px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); }
+    .hidden { display:none !important; }
+    label { display:grid; gap:4px; font-size: 14px; }
+    input, select, textarea, button { width:100%; box-sizing:border-box; font:inherit; padding:8px; border:1px solid #cfd8e3; border-radius:8px; }
+    textarea { min-height: 72px; }
+    button { border:0; background:#1d4ed8; color:#fff; cursor:pointer; }
+    button.secondary { background:#475569; }
+    button.warn { background:#a16207; }
+    button.danger { background:#b91c1c; }
+    .muted { color:#6b7280; font-size:13px; }
+    .badge { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; }
+    .badge.role { background:#e5edff; color:#1e40af; }
+    .badge.new { background:#fee2e2; color:#991b1b; font-weight:700; }
+    .lead-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .lead-item { border:1px solid #d7dfef; border-radius:10px; padding:10px; background:#fff; }
+    .lead-item.new { border-color:#dc2626; background:#fff1f2; }
+    table { width:100%; border-collapse: collapse; }
+    th,td { border-bottom:1px solid #e5e7eb; padding:8px; text-align:left; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section id="loginSection" class="card">
+      <h1>Belépés</h1>
+      <p class="muted">Demo admin: <b>admin</b> / <b>admin123</b></p>
+      <form id="loginForm" class="grid grid-2">
+        <label>Felhasználónév<input id="loginUsername" required></label>
+        <label>Jelszó<input id="loginPassword" type="password" required></label>
+        <div><button type="submit">Belépés</button></div>
+      </form>
+      <p id="loginMsg" class="muted"></p>
+    </section>
+
+    <section id="appSection" class="hidden">
+      <div class="card row">
+        <div>
+          <h1>Lead Manager</h1>
+          <p class="muted">Bejelentkezve: <b id="whoami"></b> <span id="roleBadge" class="badge role"></span></p>
+        </div>
+        <button id="logoutBtn" class="secondary">Kilépés</button>
+      </div>
+
+      <section id="cloudSection" class="card">
+        <h2>Felhő adatbázis (Supabase)</h2>
+        <p class="muted">Adj meg Supabase adatokat. Táblák: <b>users_app</b>, <b>leads_app</b>. Mentéskor felhőbe is szinkronizál.</p>
+        <div class="grid grid-2">
+          <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+          <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
+          <div class="row">
+            <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
+            <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
+          </div>
+        </div>
+        <p id="cloudMsg" class="muted"></p>
+        <ul class="muted">
+          <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
+          <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
+        </ul>
+      </section>
+
+      <section id="adminSection" class="card hidden">
+        <h2>Admin – felhasználók kezelése</h2>
+        <form id="createUserForm" class="grid grid-3">
+          <label>Név<input id="newUserName" required></label>
+          <label>Email<input id="newUserEmail" type="email" placeholder="nev@pelda.hu"></label>
+          <label>Felhasználónév<input id="newUsername" required></label>
+          <label>Jelszó<input id="newPassword" required></label>
+          <label>Jogosultság
+            <select id="newUserRole">
+              <option value="lead_giver">Lead adó</option>
+              <option value="advisor">Banki tanácsadó</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <div><button type="submit">Felhasználó létrehozása</button></div>
+        </form>
+        <h3>Felhasználók szerkesztése</h3>
+        <table id="usersTable"></table>
+      </section>
+
+      <section id="createLeadSection" class="card hidden">
+        <h2>Új lead (logikai sorrend)</h2>
+        <form id="leadForm" class="grid grid-2">
+          <label>1) Ügyfél neve *<input id="customerName" required></label>
+          <label>2) Telefonszám *<input id="phone" required></label>
+          <label>3) E-mail<input id="email" type="email"></label>
+          <label>4) Érdeklődési kör *<select id="interest"></select></label>
+          <div><button type="submit">Lead mentése</button></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h2 id="listTitle">Leadek</h2>
+          <div class="row">
+            <button id="downloadCsvBtn" type="button">CSV</button>
+            <button id="downloadJsonBtn" type="button">JSON</button>
+          </div>
+        </div>
+        <p class="muted">Kompakt kártyák: kattintásra nyitható részletek.</p>
+        <div id="leadList" class="lead-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const DB_KEY = 'lead_manager_db_v3'
+    const SESSION_KEY = 'lead_manager_session_v3'
+    const CLOUD_KEY = 'lead_manager_cloud_v3'
+
+    const interests = [
+      'Személyi kölcsön','Lakáshitel / jelzálog','Otthonstart','Munkáshitel','Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel','Babaváró','CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog'
+    ]
+    const mortgageStatuses = ['Információt megkapta','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti','Beadás','Befogadás','Hiánypótlás','Bírálat','Jóváhagyás','Szerződéskötés','Folyósítás','Visszalépett','Elutasított','Nem felelt meg']
+    const otherStatuses = ['Információt megkapta','Nem felel meg (KO szűrés)','Lead átadva banknak','Banki ügyintézés','Visszalépett','Nem felelt meg BANK - elutasítva']
+
+    const byId = (id) => document.getElementById(id)
+    const now = () => new Date().toLocaleString('hu-HU')
+    const isMortgage = (v) => /jelzálog|Lakáshitel|Építési/i.test(v)
+
+    let db = loadDb()
+    let currentUser = loadSession()
+    let expandedLeadId = null
+    let cloudCfg = loadCloudCfg()
+    let supabaseClient = null
+
+    function loadDb(){
+      const raw = localStorage.getItem(DB_KEY)
+      if(raw) return JSON.parse(raw)
+      const seed = { users:[{id:crypto.randomUUID(),name:'Rendszer Admin',email:'admin@local.hu',username:'admin',password:'admin123',role:'admin'}], leads:[] }
+      localStorage.setItem(DB_KEY, JSON.stringify(seed))
+      return seed
+    }
+    function saveDbLocal(){ localStorage.setItem(DB_KEY, JSON.stringify(db)) }
+    function loadSession(){ const id = localStorage.getItem(SESSION_KEY); return db.users.find(u => u.id===id) || null }
+    function setSession(user){ currentUser=user; user?localStorage.setItem(SESSION_KEY,user.id):localStorage.removeItem(SESSION_KEY) }
+
+    function loadCloudCfg(){ const raw = localStorage.getItem(CLOUD_KEY); return raw ? JSON.parse(raw) : {url:'',key:''} }
+    function saveCloudCfg(){ localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCfg)) }
+
+    function initSupabase(){
+      const err = validateCloudConfig(cloudCfg)
+      if(err) { setCloudMsg(err); return null }
+      if(!window.supabase?.createClient){ setCloudMsg('A Supabase kliens nem töltődött be.'); return null }
+      supabaseClient = window.supabase.createClient(cloudCfg.url, cloudCfg.key.trim())
+      return supabaseClient
+    }
+
+    async function testCloudConnection(){
+      const err = validateCloudConfig(cloudCfg)
+      if(err) throw new Error(err)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      try {
+        const res = await fetch(`${cloudCfg.url}/rest/v1/`, {
+          method: 'GET',
+          headers: { apikey: cloudCfg.key },
+          signal: controller.signal
+        })
+        if(!res.ok) throw new Error(`Supabase REST hiba: HTTP ${res.status}`)
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
+
+    function validateCloudConfig(cfg){
+      if(!cfg.key) return 'Adj meg Supabase Anon / Publishable Key értéket.'
+      if(!cfg.url){
+        const inferred = inferUrlFromPublishableKey(cfg.key)
+        if(inferred){
+          cfg.url = inferred
+          byId('sbUrl').value = inferred
+        }
+      }
+      if(!cfg.url) return 'Adj meg Supabase URL-t (vagy használj sb_publishable_... kulcsot, amiből URL következtethető).'
+      if(!/^https:\/\//i.test(cfg.url)) return 'A Supabase URL-nek https:// formátumúnak kell lennie.'
+      return ''
+    }
+
+    function inferUrlFromPublishableKey(key){
+      const m = String(key || '').match(/^sb_publishable_([A-Za-z0-9]+)_/)
+      if(!m) return ''
+      return `https://${m[1]}.supabase.co`
+    }
+
+    async function saveDbCloud(){
+      if(!supabaseClient) return
+      setCloudMsg('Felhő mentés folyamatban...')
+      try {
+        await testCloudConnection()
+        await supabaseClient.from('users_app').delete().neq('id', '')
+        await supabaseClient.from('leads_app').delete().neq('id', '')
+        if(db.users.length) await supabaseClient.from('users_app').insert(db.users)
+        if(db.leads.length) await supabaseClient.from('leads_app').insert(db.leads)
+        setCloudMsg('Felhő mentés kész.')
+      } catch (e) {
+        setCloudMsg(formatCloudError('Felhő mentés', e))
+      }
+    }
+
+    async function pullCloud(){
+      if(!supabaseClient) return setCloudMsg('Előbb kapcsolódj a felhőhöz.')
+      setCloudMsg('Felhőből betöltés...')
+      try {
+        await testCloudConnection()
+        const u = await supabaseClient.from('users_app').select('*')
+        const l = await supabaseClient.from('leads_app').select('*')
+        if(u.error) throw u.error
+        if(l.error) throw l.error
+        db.users = u.data || []
+        db.leads = l.data || []
+        saveDbLocal()
+        setCloudMsg('Felhő adatok betöltve.')
+        render()
+      } catch (e) {
+        setCloudMsg(formatCloudError('Felhő betöltés', e))
+      }
+    }
+
+    async function persist(){
+      saveDbLocal()
+      await saveDbCloud()
+    }
+
+    function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
+
+    function init(){
+      interests.forEach(i => byId('interest').add(new Option(i, i)))
+      byId('sbUrl').value = cloudCfg.url || ''
+      byId('sbKey').value = cloudCfg.key || ''
+      initSupabase()
+
+      byId('loginForm').addEventListener('submit', (e)=>{
+        e.preventDefault()
+        const username = byId('loginUsername').value.trim()
+        const password = byId('loginPassword').value
+        const u = db.users.find(x => x.username===username && x.password===password)
+        if(!u){ byId('loginMsg').textContent='Hibás belépési adatok.'; return }
+        setSession(u); byId('loginForm').reset(); byId('loginMsg').textContent=''; render()
+      })
+
+      byId('logoutBtn').onclick = () => { setSession(null); render() }
+
+      byId('cloudConnectBtn').onclick = async () => {
+        cloudCfg.url = byId('sbUrl').value.trim().replace(/\/+$/, '')
+        cloudCfg.key = byId('sbKey').value.trim()
+        saveCloudCfg()
+        if(initSupabase()){
+          try {
+            await testCloudConnection()
+            setCloudMsg('Kapcsolódva. Következő mentések felhőbe is mennek.')
+          } catch (e) {
+            setCloudMsg(formatCloudError('Kapcsolódás', e))
+          }
+        }
+      }
+      byId('cloudPullBtn').onclick = pullCloud
+
+      byId('createUserForm').addEventListener('submit', async (e)=>{
+        e.preventDefault()
+        if(currentUser?.role !== 'admin') return
+        const username = byId('newUsername').value.trim()
+        if(db.users.some(u => u.username === username)) return alert('Már létezik ez a felhasználónév.')
+        db.users.push({
+          id: crypto.randomUUID(),
+          name: byId('newUserName').value.trim(),
+          email: byId('newUserEmail').value.trim(),
+          username,
+          password: byId('newPassword').value,
+          role: byId('newUserRole').value
+        })
+        await persist(); e.target.reset(); render()
+      })
+
+      byId('leadForm').addEventListener('submit', async (e)=>{
+        e.preventDefault()
+        if(!currentUser || !['lead_giver','admin'].includes(currentUser.role)) return
+        db.leads.unshift({
+          id: crypto.randomUUID(),
+          customerName: byId('customerName').value.trim(),
+          phone: byId('phone').value.trim(),
+          email: byId('email').value.trim(),
+          interest: byId('interest').value,
+          leadGiverId: currentUser.id,
+          leadGiverName: currentUser.name,
+          createdAt: now(),
+          isNew: true,
+          processSuspended: false,
+          contactDone: false,
+          contactResult: '',
+          contactRecordedAt: '',
+          status: 'Információt megkapta',
+          statusDate: '',
+          advisorData: {
+            submittedForName:'', incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
+            note:'', birthDate:'', supportEligibility:'', purchaseInfo:'', ownFunds:'', khrStatus:'', coBorrower:''
+          }
+        })
+        await persist(); e.target.reset(); byId('interest').value = interests[0]; render()
+      })
+
+      byId('downloadCsvBtn').onclick = () => download('csv')
+      byId('downloadJsonBtn').onclick = () => download('json')
+
+      render()
+    }
+
+    function visibleLeads(){
+      if(!currentUser) return []
+      if(['admin','advisor'].includes(currentUser.role)) return db.leads
+      return db.leads.filter(l => l.leadGiverId === currentUser.id)
+    }
+    function canEditLead(){ return currentUser && ['admin','advisor'].includes(currentUser.role) }
+
+    function render(){
+      const logged = !!currentUser
+      byId('loginSection').classList.toggle('hidden', logged)
+      byId('appSection').classList.toggle('hidden', !logged)
+      if(!logged) return
+
+      byId('whoami').textContent = `${currentUser.name} (${currentUser.username})`
+      byId('roleBadge').textContent = currentUser.role
+      byId('adminSection').classList.toggle('hidden', currentUser.role !== 'admin')
+      byId('createLeadSection').classList.toggle('hidden', !['lead_giver','admin'].includes(currentUser.role))
+      byId('listTitle').textContent = currentUser.role === 'lead_giver' ? 'Saját leadek' : 'Összes lead'
+
+      renderUsersTable()
+      renderLeadsCompact()
+    }
+
+    function renderUsersTable(){
+      if(currentUser?.role !== 'admin') return
+      const table = byId('usersTable')
+      table.innerHTML = `
+        <thead><tr><th>Név</th><th>Email</th><th>Felhasználónév</th><th>Szerepkör</th><th>Jelszó</th><th>Művelet</th></tr></thead>
+        <tbody>
+          ${db.users.map(u => `
+            <tr>
+              <td><input data-u="name" data-id="${u.id}" value="${escapeHtml(u.name)}"></td>
+              <td><input data-u="email" data-id="${u.id}" value="${escapeHtml(u.email || '')}"></td>
+              <td><input data-u="username" data-id="${u.id}" value="${escapeHtml(u.username)}"></td>
+              <td>
+                <select data-u="role" data-id="${u.id}">
+                  <option value="lead_giver" ${u.role==='lead_giver'?'selected':''}>lead_giver</option>
+                  <option value="advisor" ${u.role==='advisor'?'selected':''}>advisor</option>
+                  <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+                </select>
+              </td>
+              <td><input data-u="password" data-id="${u.id}" value="${escapeHtml(u.password)}"></td>
+              <td>
+                <button class="warn" data-save-user="${u.id}">Mentés</button>
+                ${u.id===currentUser.id ? '' : `<button class="danger" data-del-user="${u.id}">Törlés</button>`}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `
+
+      table.querySelectorAll('[data-save-user]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.saveUser
+          const user = db.users.find(x => x.id===id)
+          if(!user) return
+          table.querySelectorAll(`[data-id="${id}"]`).forEach(el => { user[el.dataset.u] = el.value.trim() })
+          await persist(); render()
+        }
+      })
+
+      table.querySelectorAll('[data-del-user]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.delUser
+          db.users = db.users.filter(u => u.id !== id)
+          db.leads = db.leads.filter(l => l.leadGiverId !== id)
+          await persist(); render()
+        }
+      })
+    }
+
+    function renderLeadsCompact(){
+      const list = byId('leadList')
+      const leads = visibleLeads()
+      list.innerHTML = ''
+      if(!leads.length){ list.innerHTML = '<p class="muted">Nincs lead.</p>'; return }
+
+      leads.forEach(lead => {
+        const box = document.createElement('article')
+        box.className = `lead-item ${lead.isNew && canEditLead() ? 'new' : ''}`
+        box.innerHTML = `
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <b>${escapeHtml(lead.customerName)}</b>
+              ${lead.isNew && canEditLead() ? '<span class="badge new">FRISS</span>' : ''}
+              <div class="muted">${escapeHtml(lead.interest)}</div>
+            </div>
+            <button data-open="${lead.id}" class="secondary">${expandedLeadId===lead.id ? 'Bezárás' : 'Megnyitás'}</button>
+          </div>
+          <div class="muted">Lead adó: ${escapeHtml(lead.leadGiverName)} | Telefon: ${escapeHtml(lead.phone)} | Státusz: ${escapeHtml(lead.status)}</div>
+        `
+
+        if(expandedLeadId === lead.id){
+          const details = document.createElement('div')
+          details.className = 'grid grid-2'
+          details.style.marginTop = '8px'
+          const statuses = isMortgage(lead.interest) ? mortgageStatuses : otherStatuses
+          details.innerHTML = `
+            <div><b>Email:</b> ${escapeHtml(lead.email || '-')}</div>
+            <div><b>Létrehozva:</b> ${escapeHtml(lead.createdAt)}</div>
+            <div><b>Felfüggesztve:</b> ${lead.processSuspended ? 'Igen' : 'Nem'}</div>
+            <div><b>Megkeresés rögzítve:</b> ${lead.contactRecordedAt ? escapeHtml(lead.contactRecordedAt) : '-'}</div>
+          `
+
+          if(canEditLead()){
+            const edit = document.createElement('div')
+            edit.className = 'grid grid-2'
+            edit.style.gridColumn = '1 / -1'
+            edit.innerHTML = `
+              <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
+              <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
+              <label>Megkeresés eredménye <input data-f="contactResult" value="${escapeHtml(lead.contactResult)}"></label>
+              <label>Státusz <select data-f="status">${statuses.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
+              ${lead.status==='Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-f="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
+              <label>Folyamat felfüggesztve <input data-f="processSuspended" type="checkbox" ${lead.processSuspended?'checked':''}></label>
+
+              <label>Beadva kinek a nevére <input data-a="submittedForName" value="${escapeHtml(lead.advisorData.submittedForName)}"></label>
+              <label>Jövedelem és formája <input data-a="incomeType" value="${escapeHtml(lead.advisorData.incomeType)}"></label>
+              <label>Egyéb hitelek <input data-a="otherLoans" value="${escapeHtml(lead.advisorData.otherLoans)}"></label>
+              <label>Hitelkártya/folyószámla <input data-a="creditCardOverdraft" value="${escapeHtml(lead.advisorData.creditCardOverdraft)}"></label>
+              <label>Mekkora hitel kell <input data-a="loanAmount" value="${escapeHtml(lead.advisorData.loanAmount)}"></label>
+              <label>Mekkora futamidő <input data-a="term" value="${escapeHtml(lead.advisorData.term)}"></label>
+              <label>Mekkora törlesztő <input data-a="installment" value="${escapeHtml(lead.advisorData.installment)}"></label>
+              <label>Születési dátum <input data-a="birthDate" type="date" value="${lead.advisorData.birthDate}"></label>
+              <label>Támogatás alkalmasság <input data-a="supportEligibility" value="${escapeHtml(lead.advisorData.supportEligibility)}"></label>
+              <label>Hol vásárol / érték <input data-a="purchaseInfo" value="${escapeHtml(lead.advisorData.purchaseInfo)}"></label>
+              <label>Önerő mértéke <input data-a="ownFunds" value="${escapeHtml(lead.advisorData.ownFunds)}"></label>
+              <label>KHR státusz <input data-a="khrStatus" value="${escapeHtml(lead.advisorData.khrStatus)}"></label>
+              <label>Adóstárs lesz-e <input data-a="coBorrower" value="${escapeHtml(lead.advisorData.coBorrower)}"></label>
+              <label style="grid-column:1/-1;">Megjegyzés <textarea data-a="note">${escapeHtml(lead.advisorData.note)}</textarea></label>
+            `
+
+            edit.querySelector(`[data-mark-open="${lead.id}"]`).onclick = async () => { lead.isNew = false; await persist(); render() }
+            edit.querySelectorAll('[data-f]').forEach(el => el.addEventListener('input', async () => {
+              const k = el.dataset.f
+              if(el.type==='checkbox'){
+                lead[k] = el.checked
+                if(k==='contactDone') lead.contactRecordedAt = el.checked ? now() : ''
+              } else lead[k] = el.value
+              await persist(); render()
+            }))
+            edit.querySelectorAll('[data-a]').forEach(el => el.addEventListener('input', async () => {
+              lead.advisorData[el.dataset.a] = el.value
+              await persist()
+            }))
+            details.appendChild(edit)
+          }
+
+          box.appendChild(details)
+        }
+
+        box.querySelector(`[data-open="${lead.id}"]`).onclick = () => {
+          expandedLeadId = expandedLeadId === lead.id ? null : lead.id
+          render()
+        }
+
+        list.appendChild(box)
+      })
+    }
+
+    function download(type){
+      const data = visibleLeads()
+      if(!data.length) return alert('Nincs letölthető lead.')
+      const stamp = fileDate()
+      if(type==='json') return downloadFile(JSON.stringify(data,null,2), `leadek-${stamp}.json`, 'application/json;charset=utf-8')
+      const rows = data.map(l => ({ ugyfel:l.customerName, lead_ado:l.leadGiverName, telefon:l.phone, email:l.email||'', erdeklodes:l.interest, statusz:l.status, statusz_datum:l.statusDate||'', megkereses:l.contactDone?'igen':'nem', eredmeny:l.contactResult||'' }))
+      const headers = Object.keys(rows[0])
+      const csv = [headers.join(';'), ...rows.map(r => headers.map(h => csvEscape(r[h])).join(';'))].join('\n')
+      downloadFile(csv, `leadek-${stamp}.csv`, 'text/csv;charset=utf-8')
+    }
+
+    function fileDate(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}` }
+    function csvEscape(v){ const t=String(v??''); return /[;"\n]/.test(t) ? `"${t.replaceAll('"','""')}"` : t }
+    function downloadFile(content, name, mime){ const b=new Blob([content],{type:mime}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u) }
+    function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') }
+    function formatCloudError(prefix, error){
+      if(error?.name === 'AbortError') return `${prefix} hiba: időtúllépés (ellenőrizd a hálózatot és a Supabase URL-t).`
+      if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
+      return `${prefix} hiba: ${error?.message || error}`
+    }
+
+    init()
+  </script>
+</body>
+</html>
