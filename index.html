@@ -259,6 +259,19 @@
       await saveDbCloud()
     }
 
+    async function refreshUsersFromCloud(){
+      try {
+        if(!initSupabase()) return false
+        const res = await supabaseClient.from('users_app').select('*')
+        if(res.error || !Array.isArray(res.data)) return false
+        db.users = res.data.map(fromCloudUser)
+        saveDbLocal()
+        return true
+      } catch {
+        return false
+      }
+    }
+
     function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
 
     function init(){
@@ -272,12 +285,16 @@
       }
       initSupabase()
 
-      byId('loginForm').addEventListener('submit', (e)=>{
+      byId('loginForm').addEventListener('submit', async (e)=>{
         e.preventDefault()
         const username = byId('loginUsername').value.trim()
         const password = byId('loginPassword').value
-        const u = db.users.find(x => x.username===username && x.password===password)
-        if(!u){ byId('loginMsg').textContent='Hibás belépési adatok.'; return }
+        let u = db.users.find(x => x.username===username && x.password===password)
+        if(!u){
+          const refreshed = await refreshUsersFromCloud()
+          if(refreshed) u = db.users.find(x => x.username===username && x.password===password)
+        }
+        if(!u){ byId('loginMsg').textContent='Hibás belépési adatok. (Cloud usernél nyomj Felhőből betöltés-t.)'; return }
         setSession(u); byId('loginForm').reset(); byId('loginMsg').textContent=''; render()
       })
 
