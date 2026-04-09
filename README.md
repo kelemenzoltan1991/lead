@@ -18,6 +18,9 @@ A felületen add meg:
 - Supabase Anon vagy Publishable Key (`sb_publishable_...` is jó)
 
 Megjegyzés:
+- A projekt alapból beégetett Supabase adatokkal indul:
+  - URL: `https://mckusqwbatbehouwiwba.supabase.co`
+  - Key: `sb_publishable_QNIwahIgtsN570YMq670dg_5ibVC-b3`
 - Ha `sb_publishable_...` kulcsot adsz meg és az URL üres, a rendszer megpróbálja automatikusan kitölteni a Supabase URL-t.
 - Cloud sync-hez ne fájlként (`file:///...`) nyisd meg a HTML-t, hanem futtasd: `npm run dev`.
 - `file:///` módnál a cloud gombok le vannak tiltva a böngésző security-origin korlátozás miatt.
@@ -63,4 +66,3 @@ Hibaelhárítás:
 - Rövid útmutató: `NO_INSTALL_GUIDE_HU.md`
 - Helyi, telepítés nélküli mód: `index.html` dupla katt (felhő sync nélkül)
 - Felhő sync telepítés nélkül: töltsd fel a fájlt HTTPS static hostra (pl. Netlify Drop), és onnan nyisd meg.
-

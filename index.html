@@ -125,6 +125,8 @@
     const DB_KEY = 'lead_manager_db_v3'
     const SESSION_KEY = 'lead_manager_session_v3'
     const CLOUD_KEY = 'lead_manager_cloud_v3'
+    const DEFAULT_SUPABASE_URL = 'https://mckusqwbatbehouwiwba.supabase.co'
+    const DEFAULT_SUPABASE_KEY = 'sb_publishable_QNIwahIgtsN570YMq670dg_5ibVC-b3'
 
     const interests = [
       'Személyi kölcsön','Lakáshitel / jelzálog','Otthonstart','Munkáshitel','Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel','Babaváró','CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog'
@@ -153,7 +155,15 @@
     function loadSession(){ const id = localStorage.getItem(SESSION_KEY); return db.users.find(u => u.id===id) || null }
     function setSession(user){ currentUser=user; user?localStorage.setItem(SESSION_KEY,user.id):localStorage.removeItem(SESSION_KEY) }
 
-    function loadCloudCfg(){ const raw = localStorage.getItem(CLOUD_KEY); return raw ? JSON.parse(raw) : {url:'',key:''} }
+    function loadCloudCfg(){
+      const raw = localStorage.getItem(CLOUD_KEY)
+      if(!raw) return {url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_KEY}
+      const parsed = JSON.parse(raw)
+      return {
+        url: parsed.url || DEFAULT_SUPABASE_URL,
+        key: parsed.key || DEFAULT_SUPABASE_KEY
+      }
+    }
     function saveCloudCfg(){ localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCfg)) }
 
     function initSupabase(){
