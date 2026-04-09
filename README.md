@@ -8,6 +8,7 @@ Indítás:
 - Szerepkörök: `admin`, `advisor`, `lead_giver`
 - Login próbálkozáskor az app automatikusan megpróbál cloud user listát frissíteni, ha helyben nem talál felhasználót.
 - Cloud login során közvetlenül is ellenőriz a `users_app` táblában (`username` + `password`), kis/nagybetű-toleráns felhasználónévvel.
+- Sikeres login után automatikusan fut egy cloud betöltés (ha elérhető), így az admin/advisor azonnal látja a friss adatokat.
 
 ## Admin funkciók
 - Felhasználó létrehozás (név, email, felhasználónév, jelszó, jogosultság)

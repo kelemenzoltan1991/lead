@@ -244,8 +244,8 @@
         const l = await supabaseClient.from('leads_app').select('*')
         if(u.error) throw u.error
         if(l.error) throw l.error
-        db.users = (u.data || []).map(fromCloudUser)
-        db.leads = (l.data || []).map(fromCloudLead)
+        mergeUsersFromCloud(u.data || [])
+        mergeLeadsFromCloud(l.data || [])
         saveDbLocal()
         setCloudMsg('Felhő adatok betöltve.')
         render()
@@ -264,7 +264,8 @@
         if(!initSupabase()) return false
         const res = await supabaseClient.from('users_app').select('*')
         if(res.error || !Array.isArray(res.data)) return false
-        db.users = res.data.map(fromCloudUser)
+        if(!res.data.length) return false
+        mergeUsersFromCloud(res.data)
         saveDbLocal()
         return true
       } catch {
@@ -334,6 +335,9 @@
           return
         }
         setSession(u); byId('loginForm').reset(); byId('loginMsg').textContent=''; render()
+        if(location.protocol !== 'file:' && initSupabase()) {
+          pullCloud()
+        }
       })
 
       byId('logoutBtn').onclick = () => { setSession(null); render() }
@@ -578,6 +582,16 @@
     function csvEscape(v){ const t=String(v??''); return /[;"\n]/.test(t) ? `"${t.replaceAll('"','""')}"` : t }
     function downloadFile(content, name, mime){ const b=new Blob([content],{type:mime}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u) }
     function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') }
+    function mergeUsersFromCloud(cloudRows){
+      const merged = new Map(db.users.map(u => [String((u.username || '').toLowerCase()), u]))
+      cloudRows.map(fromCloudUser).forEach(u => merged.set(String((u.username || '').toLowerCase()), u))
+      db.users = Array.from(merged.values())
+    }
+    function mergeLeadsFromCloud(cloudRows){
+      const merged = new Map(db.leads.map(l => [l.id, l]))
+      cloudRows.map(fromCloudLead).forEach(l => merged.set(l.id, l))
+      db.leads = Array.from(merged.values())
+    }
     function toCloudUser(u){
       return {
         id: u.id,
