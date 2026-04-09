@@ -57,6 +57,7 @@
       <section id="cloudSection" class="card">
         <h2>Felhő adatbázis (Supabase)</h2>
         <p class="muted">Adj meg Supabase adatokat. Táblák: <b>users_app</b>, <b>leads_app</b>. Mentéskor felhőbe is szinkronizál.</p>
+        <p id="protocolMsg" class="muted"></p>
         <div class="grid grid-2">
           <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
           <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
@@ -67,6 +68,7 @@
         </div>
         <p id="cloudMsg" class="muted"></p>
         <ul class="muted">
+          <li>Cloud sync-et ne `file:///` módban futtasd; használd: <b>npm run dev</b>.</li>
           <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
           <li>Ha HTTP 401 hiba jön: a kulcs/projekt nem stimmel, vagy hiányzik a tábla policy jogosultság.</li>
           <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
@@ -232,6 +234,9 @@
       interests.forEach(i => byId('interest').add(new Option(i, i)))
       byId('sbUrl').value = cloudCfg.url || ''
       byId('sbKey').value = cloudCfg.key || ''
+      if(location.protocol === 'file:') {
+        byId('protocolMsg').textContent = 'Figyelem: file:// módban a böngésző blokkolhatja a felhő kéréseket. Indítsd inkább npm run dev-vel.'
+      }
       initSupabase()
 
       byId('loginForm').addEventListener('submit', (e)=>{
@@ -489,6 +494,12 @@
       if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
       if(error?.status === 401 || String(error?.message || '').includes('401')) {
         return `${prefix} hiba: HTTP 401 (jogosultság/kulcs hiba). Ellenőrizd, hogy a kulcs az adott projekthez tartozik, és a users_app / leads_app táblákra vannak policy-k.`
+      }
+      if(String(error?.message || '').includes(\"Could not find the table 'public.users_app'\")) {
+        return `${prefix} hiba: hiányzik a public.users_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`
+      }
+      if(String(error?.message || '').includes(\"Could not find the table 'public.leads_app'\")) {
+        return `${prefix} hiba: hiányzik a public.leads_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`
       }
       return `${prefix} hiba: ${error?.message || error}`
     }

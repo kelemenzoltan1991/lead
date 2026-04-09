@@ -19,10 +19,12 @@ A felületen add meg:
 
 Megjegyzés:
 - Ha `sb_publishable_...` kulcsot adsz meg és az URL üres, a rendszer megpróbálja automatikusan kitölteni a Supabase URL-t.
+- Cloud sync-hez ne fájlként (`file:///...`) nyisd meg a HTML-t, hanem futtasd: `npm run dev`.
 
 Szükséges táblák:
 - `users_app`
 - `leads_app`
+- Táblák és demo policy létrehozás: futtasd a `supabase/sql/schema.sql` fájlt a Supabase SQL Editorban.
 
 A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
 
@@ -30,6 +32,7 @@ Hibaelhárítás:
 - `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
 - Ha céges hálózatot/VPN-t használsz, lehet hogy blokkolja a Supabase végpontot.
 - `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
+- `Could not find the table 'public.users_app'`: még nincs létrehozva a tábla; futtasd a `supabase/sql/schema.sql` scriptet.
 
 ## Lead megjelenítés
 - Kompakt kártyák minden szerepkörnél
