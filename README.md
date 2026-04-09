@@ -58,3 +58,9 @@ Hibaelhárítás:
 - Terminálból gyors megnyitás/listázás:
   - `ls -lh release/`
   - `realpath release/lead-manager-latest.zip`
+
+## Ha nem tudsz telepíteni semmit (céges laptop)
+- Rövid útmutató: `NO_INSTALL_GUIDE_HU.md`
+- Helyi, telepítés nélküli mód: `index.html` dupla katt (felhő sync nélkül)
+- Felhő sync telepítés nélkül: töltsd fel a fájlt HTTPS static hostra (pl. Netlify Drop), és onnan nyisd meg.
+
