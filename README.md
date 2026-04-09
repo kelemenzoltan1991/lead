@@ -23,6 +23,10 @@ Szükséges táblák:
 
 A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
 
+Hibaelhárítás:
+- `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
+- Ha céges hálózatot/VPN-t használsz, lehet hogy blokkolja a Supabase végpontot.
+
 ## Lead megjelenítés
 - Kompakt kártyák minden szerepkörnél
 - Kattintásra nyílik a részletes szerkesztés

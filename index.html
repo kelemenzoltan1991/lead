@@ -66,6 +66,10 @@
           </div>
         </div>
         <p id="cloudMsg" class="muted"></p>
+        <ul class="muted">
+          <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
+          <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
+        </ul>
       </section>
 
       <section id="adminSection" class="card hidden">
@@ -150,22 +154,48 @@
     function saveCloudCfg(){ localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCfg)) }
 
     function initSupabase(){
-      if(!cloudCfg.url || !cloudCfg.key || !window.supabase?.createClient) return null
-      supabaseClient = window.supabase.createClient(cloudCfg.url, cloudCfg.key)
+      const err = validateCloudConfig(cloudCfg)
+      if(err) { setCloudMsg(err); return null }
+      if(!window.supabase?.createClient){ setCloudMsg('A Supabase kliens nem töltődött be.'); return null }
+      supabaseClient = window.supabase.createClient(cloudCfg.url, cloudCfg.key.trim())
       return supabaseClient
+    }
+
+    async function testCloudConnection(){
+      const err = validateCloudConfig(cloudCfg)
+      if(err) throw new Error(err)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      try {
+        const res = await fetch(`${cloudCfg.url}/rest/v1/`, {
+          method: 'GET',
+          headers: { apikey: cloudCfg.key, Authorization: `Bearer ${cloudCfg.key}` },
+          signal: controller.signal
+        })
+        if(!res.ok) throw new Error(`Supabase REST hiba: HTTP ${res.status}`)
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
+
+    function validateCloudConfig(cfg){
+      if(!cfg.url || !cfg.key) return 'Adj meg Supabase URL + Anon Key értéket.'
+      if(!/^https:\/\//i.test(cfg.url)) return 'A Supabase URL-nek https:// formátumúnak kell lennie.'
+      return ''
     }
 
     async function saveDbCloud(){
       if(!supabaseClient) return
       setCloudMsg('Felhő mentés folyamatban...')
       try {
+        await testCloudConnection()
         await supabaseClient.from('users_app').delete().neq('id', '')
         await supabaseClient.from('leads_app').delete().neq('id', '')
         if(db.users.length) await supabaseClient.from('users_app').insert(db.users)
         if(db.leads.length) await supabaseClient.from('leads_app').insert(db.leads)
         setCloudMsg('Felhő mentés kész.')
       } catch (e) {
-        setCloudMsg('Felhő mentés hiba: ' + (e.message || e))
+        setCloudMsg(formatCloudError('Felhő mentés', e))
       }
     }
 
@@ -173,6 +203,7 @@
       if(!supabaseClient) return setCloudMsg('Előbb kapcsolódj a felhőhöz.')
       setCloudMsg('Felhőből betöltés...')
       try {
+        await testCloudConnection()
         const u = await supabaseClient.from('users_app').select('*')
         const l = await supabaseClient.from('leads_app').select('*')
         if(u.error) throw u.error
@@ -183,7 +214,7 @@
         setCloudMsg('Felhő adatok betöltve.')
         render()
       } catch (e) {
-        setCloudMsg('Felhő betöltési hiba: ' + (e.message || e))
+        setCloudMsg(formatCloudError('Felhő betöltés', e))
       }
     }
 
@@ -212,11 +243,17 @@
       byId('logoutBtn').onclick = () => { setSession(null); render() }
 
       byId('cloudConnectBtn').onclick = async () => {
-        cloudCfg.url = byId('sbUrl').value.trim()
+        cloudCfg.url = byId('sbUrl').value.trim().replace(/\/+$/, '')
         cloudCfg.key = byId('sbKey').value.trim()
         saveCloudCfg()
-        if(initSupabase()) setCloudMsg('Kapcsolódva. Következő mentések felhőbe is mennek.')
-        else setCloudMsg('Adj meg URL + Anon Key értéket.')
+        if(initSupabase()){
+          try {
+            await testCloudConnection()
+            setCloudMsg('Kapcsolódva. Következő mentések felhőbe is mennek.')
+          } catch (e) {
+            setCloudMsg(formatCloudError('Kapcsolódás', e))
+          }
+        }
       }
       byId('cloudPullBtn').onclick = pullCloud
 
@@ -444,6 +481,11 @@
     function csvEscape(v){ const t=String(v??''); return /[;"\n]/.test(t) ? `"${t.replaceAll('"','""')}"` : t }
     function downloadFile(content, name, mime){ const b=new Blob([content],{type:mime}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u) }
     function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') }
+    function formatCloudError(prefix, error){
+      if(error?.name === 'AbortError') return `${prefix} hiba: időtúllépés (ellenőrizd a hálózatot és a Supabase URL-t).`
+      if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
+      return `${prefix} hiba: ${error?.message || error}`
+    }
 
     init()
   </script>
