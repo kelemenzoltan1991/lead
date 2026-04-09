@@ -417,6 +417,7 @@
 
       byId('whoami').textContent = `${currentUser.name} (${currentUser.username})`
       byId('roleBadge').textContent = currentUser.role
+      byId('cloudSection').classList.toggle('hidden', currentUser.role !== 'admin')
       byId('adminSection').classList.toggle('hidden', currentUser.role !== 'admin')
       byId('createLeadSection').classList.toggle('hidden', !['lead_giver','admin'].includes(currentUser.role))
       byId('listTitle').textContent = currentUser.role === 'lead_giver' ? 'Saját leadek' : 'Összes lead'

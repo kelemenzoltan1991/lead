@@ -15,6 +15,8 @@ Indítás:
 - Felhasználó törlés
 
 ## Felhő adatbázis (Supabase)
+> A Felhő adatbázis mezők (URL/Key, Kapcsolódás, Felhőből betöltés) csak **admin** felhasználónak látszanak.
+
 A felületen add meg:
 - Supabase URL
 - Supabase Anon vagy Publishable Key (`sb_publishable_...` is jó)
