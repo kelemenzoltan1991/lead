@@ -7,6 +7,7 @@ Indítás:
 - Demo admin: `admin` / `admin123`
 - Szerepkörök: `admin`, `advisor`, `lead_giver`
 - Login próbálkozáskor az app automatikusan megpróbál cloud user listát frissíteni, ha helyben nem talál felhasználót.
+- Cloud login során közvetlenül is ellenőriz a `users_app` táblában (`username` + `password`), kis/nagybetű-toleráns felhasználónévvel.
 
 ## Admin funkciók
 - Felhasználó létrehozás (név, email, felhasználónév, jelszó, jogosultság)

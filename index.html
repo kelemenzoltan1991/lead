@@ -272,6 +272,27 @@
       }
     }
 
+    async function findCloudUserForLogin(username, password){
+      try {
+        if(!initSupabase()) return null
+        let res = await supabaseClient.from('users_app').select('*').eq('username', username).limit(1)
+        if(res.error) return null
+        let row = res.data?.[0]
+        if(!row){
+          // fallback: case-insensitive username keresés
+          res = await supabaseClient.from('users_app').select('*').ilike('username', username).limit(1)
+          if(res.error) return null
+          row = res.data?.[0]
+        }
+        if(!row) return null
+        const mapped = fromCloudUser(row)
+        if((mapped.password || '').trim() !== String(password || '').trim()) return null
+        return mapped
+      } catch {
+        return null
+      }
+    }
+
     function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
 
     function init(){
@@ -288,13 +309,30 @@
       byId('loginForm').addEventListener('submit', async (e)=>{
         e.preventDefault()
         const username = byId('loginUsername').value.trim()
-        const password = byId('loginPassword').value
-        let u = db.users.find(x => x.username===username && x.password===password)
+        const password = String(byId('loginPassword').value || '')
+        let u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
         if(!u){
           const refreshed = await refreshUsersFromCloud()
-          if(refreshed) u = db.users.find(x => x.username===username && x.password===password)
+          if(refreshed) u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
         }
-        if(!u){ byId('loginMsg').textContent='Hibás belépési adatok. (Cloud usernél nyomj Felhőből betöltés-t.)'; return }
+        if(!u){
+          const cloudUser = await findCloudUserForLogin(username, password)
+          if(cloudUser){
+            const idx = db.users.findIndex(x => (x.username || '').toLowerCase() === cloudUser.username.toLowerCase())
+            if(idx >= 0) db.users[idx] = cloudUser
+            else db.users.push(cloudUser)
+            saveDbLocal()
+            u = cloudUser
+          }
+        }
+        if(!u){
+          if(location.protocol === 'file:'){
+            byId('loginMsg').textContent='Hibás belépési adatok. File módban cloud login nem működik; futtasd npm run dev-vel.'
+          } else {
+            byId('loginMsg').textContent='Hibás belépési adatok. Ellenőrizd a users_app táblában a username + password mezőt.'
+          }
+          return
+        }
         setSession(u); byId('loginForm').reset(); byId('loginMsg').textContent=''; render()
       })
 
