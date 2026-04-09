@@ -19,3 +19,4 @@ rm -f "$TMP_LIST"
 
 echo "ZIP created: $STAMPED_ZIP"
 echo "ZIP latest:  $LATEST_ZIP"
+echo "Absolute latest path: $(realpath "$LATEST_ZIP")"

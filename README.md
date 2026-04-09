@@ -47,3 +47,8 @@ Hibaelhárítás:
   - időbélyeges ZIP: `release/lead-manager-YYYYMMDD-HHMMSS.zip`
   - aktuális ZIP: `release/lead-manager-latest.zip`
 
+### Hol tudod letölteni?
+- A kész fájl itt található a projektben: `release/lead-manager-latest.zip`
+- Terminálból gyors megnyitás/listázás:
+  - `ls -lh release/`
+  - `realpath release/lead-manager-latest.zip`
