@@ -221,11 +221,13 @@
       setCloudMsg('Felhő mentés folyamatban...')
       try {
         if(db.users.length) {
-          const r1 = await supabaseClient.from('users_app').upsert(db.users, { onConflict: 'username' })
+          const cloudUsers = db.users.map(toCloudUser)
+          const r1 = await supabaseClient.from('users_app').upsert(cloudUsers, { onConflict: 'username' })
           if(r1.error) throw r1.error
         }
         if(db.leads.length) {
-          const r2 = await supabaseClient.from('leads_app').upsert(db.leads, { onConflict: 'id' })
+          const cloudLeads = db.leads.map(toCloudLead)
+          const r2 = await supabaseClient.from('leads_app').upsert(cloudLeads, { onConflict: 'id' })
           if(r2.error) throw r2.error
         }
         setCloudMsg('Felhő mentés kész.')
@@ -242,8 +244,8 @@
         const l = await supabaseClient.from('leads_app').select('*')
         if(u.error) throw u.error
         if(l.error) throw l.error
-        db.users = u.data || []
-        db.leads = l.data || []
+        db.users = (u.data || []).map(fromCloudUser)
+        db.leads = (l.data || []).map(fromCloudLead)
         saveDbLocal()
         setCloudMsg('Felhő adatok betöltve.')
         render()
@@ -520,6 +522,66 @@
     function csvEscape(v){ const t=String(v??''); return /[;"\n]/.test(t) ? `"${t.replaceAll('"','""')}"` : t }
     function downloadFile(content, name, mime){ const b=new Blob([content],{type:mime}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u) }
     function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') }
+    function toCloudUser(u){
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email || null,
+        username: u.username,
+        password: u.password,
+        role: u.role || 'lead_giver'
+      }
+    }
+    function fromCloudUser(u){
+      return {
+        id: u.id,
+        name: u.name || '',
+        email: u.email || '',
+        username: u.username || '',
+        password: u.password || '',
+        role: u.role || 'lead_giver'
+      }
+    }
+    function toCloudLead(l){
+      return {
+        id: l.id,
+        customer_name: l.customerName || '',
+        phone: l.phone || '',
+        email: l.email || null,
+        interest: l.interest || '',
+        lead_giver_id: l.leadGiverId || null,
+        lead_giver_name: l.leadGiverName || '',
+        created_at: l.createdAt || '',
+        is_new: !!l.isNew,
+        process_suspended: !!l.processSuspended,
+        contact_done: !!l.contactDone,
+        contact_result: l.contactResult || '',
+        contact_recorded_at: l.contactRecordedAt || '',
+        status: l.status || '',
+        status_date: l.statusDate || '',
+        advisor_data: l.advisorData || {}
+      }
+    }
+    function fromCloudLead(l){
+      return {
+        id: l.id,
+        customerName: l.customer_name ?? l.customerName ?? '',
+        phone: l.phone || '',
+        email: l.email || '',
+        interest: l.interest || '',
+        leadGiverId: l.lead_giver_id ?? l.leadGiverId ?? '',
+        leadGiverName: l.lead_giver_name ?? l.leadGiverName ?? '',
+        createdAt: l.created_at ?? l.createdAt ?? '',
+        isNew: l.is_new ?? l.isNew ?? true,
+        processSuspended: l.process_suspended ?? l.processSuspended ?? false,
+        contactDone: l.contact_done ?? l.contactDone ?? false,
+        contactResult: l.contact_result ?? l.contactResult ?? '',
+        contactRecordedAt: l.contact_recorded_at ?? l.contactRecordedAt ?? '',
+        status: l.status || 'Információt megkapta',
+        statusDate: l.status_date ?? l.statusDate ?? '',
+        advisorData: l.advisor_data ?? l.advisorData ?? {}
+      }
+    }
     function formatCloudError(prefix, error){
       if(error?.name === 'AbortError') return `${prefix} hiba: időtúllépés (ellenőrizd a hálózatot és a Supabase URL-t).`
       if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
@@ -527,10 +589,10 @@
         return `${prefix} hiba: HTTP 401 (jogosultság/kulcs hiba). Ellenőrizd, hogy a kulcs az adott projekthez tartozik, és a users_app / leads_app táblákra vannak policy-k.`
       }
       if(error?.status === 400 || String(error?.message || '').includes('400')) {
-        return `${prefix} hiba: HTTP 400 (hibás lekérdezés). Frissítve lett upsert mentésre; töltsd újra a legfrissebb fájlt és próbáld újra.`
+        return `${prefix} hiba: HTTP 400 (oszlopnév/adatformátum probléma). Ellenőrizd, hogy a schema.sql legfrissebb verziója van a Supabase-ben.`
       }
       if(error?.status === 409 || String(error?.message || '').includes('409')) {
-        return `${prefix} hiba: HTTP 409 (ütközés). Ellenőrizd, hogy az egyedi mezők (pl. username) nem duplikáltak.`
+        return `${prefix} hiba: HTTP 409 (ütközés). Valószínűleg duplikált username vagy rossz onConflict mező.`
       }
       if(String(error?.message || '').includes("Could not find the table 'public.users_app'")) {
         return `${prefix} hiba: hiányzik a public.users_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`

@@ -39,6 +39,7 @@ Hibaelhárítás:
 - Ha céges hálózatot/VPN-t használsz, lehet hogy blokkolja a Supabase végpontot.
 - `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
 - `Could not find the table 'public.users_app'`: még nincs létrehozva a tábla; futtasd a `supabase/sql/schema.sql` scriptet.
+- `HTTP 400` / `HTTP 409`: frissítsd a `schema.sql`-t és használd a beépített admin felületet user létrehozásra (a mentés upsert alapú).
 
 ## Lead megjelenítés
 - Kompakt kártyák minden szerepkörnél
