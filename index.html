@@ -648,6 +648,46 @@
             <div><b>Megkeresés rögzítve:</b> ${lead.contactRecordedAt ? escapeHtml(lead.contactRecordedAt) : '-'}</div>
           `
 
+          const contactSection = document.createElement('div')
+          contactSection.className = 'grid'
+          contactSection.style.gridColumn = '1 / -1'
+          contactSection.innerHTML = `
+            <label style="grid-column:1/-1;">Megkeresés eredménye
+              <div class="row">
+                <input data-contact-input placeholder="pl. nem vette fel">
+                <button type="button" data-add-contact class="secondary" style="width:auto; white-space:nowrap;">OK</button>
+              </div>
+            </label>
+            <div style="grid-column:1/-1;" class="muted">
+              ${(lead.advisorData.contactHistory || []).length
+                ? (lead.advisorData.contactHistory || []).map(h => `<div>${escapeHtml(h.at)} - ${escapeHtml(h.byName || 'Ismeretlen')} (${escapeHtml(h.byRole || 'n/a')}): ${escapeHtml(h.text)}</div>`).join('')
+                : 'Nincs még rögzített megkeresési eredmény.'}
+            </div>
+          `
+          const addContactBtn = contactSection.querySelector('[data-add-contact]')
+          const contactInput = contactSection.querySelector('[data-contact-input]')
+          if(addContactBtn && contactInput){
+            addContactBtn.addEventListener('click', async () => {
+              const txt = (contactInput.value || '').trim()
+              if(!txt || !currentUser) return
+              lead.advisorData.contactHistory = lead.advisorData.contactHistory || []
+              const timestamp = now()
+              lead.advisorData.contactHistory.unshift({
+                at: timestamp,
+                text: txt,
+                byUserId: currentUser.id,
+                byName: currentUser.name || currentUser.username || 'Ismeretlen',
+                byRole: currentUser.role || ''
+              })
+              lead.contactResult = txt
+              lead.contactDone = true
+              lead.contactRecordedAt = timestamp
+              await persist()
+              render()
+            })
+          }
+          details.appendChild(contactSection)
+
           if(canEditLead()){
             const edit = document.createElement('div')
             edit.className = 'grid grid-2'
@@ -666,17 +706,6 @@
               </label>
               <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
               <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
-              <label style="grid-column:1/-1;">Megkeresés eredménye
-                <div class="row">
-                  <input data-contact-input placeholder="pl. nem vette fel">
-                  <button type="button" data-add-contact class="secondary" style="width:auto; white-space:nowrap;">OK</button>
-                </div>
-              </label>
-              <div style="grid-column:1/-1;" class="muted">
-                ${(lead.advisorData.contactHistory || []).length
-                  ? (lead.advisorData.contactHistory || []).map(h => `<div>${escapeHtml(h.at)} ${escapeHtml(h.text)}</div>`).join('')
-                  : 'Nincs még rögzített megkeresési eredmény.'}
-              </div>
               <label>Státusz <select data-f="status">${statuses.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
               ${lead.status==='Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-f="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
               <label>Folyamat felfüggesztve <input data-f="processSuspended" type="checkbox" ${lead.processSuspended?'checked':''}></label>
@@ -702,21 +731,6 @@
               syncCb.addEventListener('change', async () => {
                 lead.advisorData.sameAsLeadGiver = syncCb.checked
                 if(syncCb.checked) lead.advisorData.submittedForName = lead.leadGiverName || ''
-                await persist()
-                render()
-              })
-            }
-            const addContactBtn = edit.querySelector('[data-add-contact]')
-            const contactInput = edit.querySelector('[data-contact-input]')
-            if(addContactBtn && contactInput){
-              addContactBtn.addEventListener('click', async () => {
-                const txt = (contactInput.value || '').trim()
-                if(!txt) return
-                lead.advisorData.contactHistory = lead.advisorData.contactHistory || []
-                lead.advisorData.contactHistory.unshift({ at: now(), text: txt })
-                lead.contactResult = txt
-                lead.contactDone = true
-                lead.contactRecordedAt = now()
                 await persist()
                 render()
               })
