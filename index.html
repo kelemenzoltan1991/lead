@@ -514,7 +514,7 @@
           status: 'Információt megkapta',
           statusDate: '',
           advisorData: {
-            submittedForName:'', incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
+            submittedForName:'', sameAsLeadGiver:false, incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
             note:'', birthDate:'', supportEligibility:'', purchaseInfo:'', ownFunds:'', khrStatus:'', coBorrower:''
           }
         }
@@ -651,6 +651,14 @@
             edit.className = 'grid grid-2'
             edit.style.gridColumn = '1 / -1'
             edit.innerHTML = `
+              <label style="grid-column:1/-1;">Beadva névre:
+                <div class="row">
+                  <input data-a="submittedForName" style="max-width:200px;" value="${escapeHtml(lead.advisorData.submittedForName)}">
+                  <span class="muted">(megegyezik a lead adóval</span>
+                  <input data-a-sync type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
+                  <span class="muted">)</span>
+                </div>
+              </label>
               <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
               <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
               <label>Megkeresés eredménye <input data-f="contactResult" value="${escapeHtml(lead.contactResult)}"></label>
@@ -658,7 +666,6 @@
               ${lead.status==='Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-f="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
               <label>Folyamat felfüggesztve <input data-f="processSuspended" type="checkbox" ${lead.processSuspended?'checked':''}></label>
 
-              <label>Beadva kinek a nevére <input data-a="submittedForName" value="${escapeHtml(lead.advisorData.submittedForName)}"></label>
               <label>Jövedelem és formája <input data-a="incomeType" value="${escapeHtml(lead.advisorData.incomeType)}"></label>
               <label>Egyéb hitelek <input data-a="otherLoans" value="${escapeHtml(lead.advisorData.otherLoans)}"></label>
               <label>Hitelkártya/folyószámla <input data-a="creditCardOverdraft" value="${escapeHtml(lead.advisorData.creditCardOverdraft)}"></label>
@@ -675,6 +682,15 @@
             `
 
             edit.querySelector(`[data-mark-open="${lead.id}"]`).onclick = async () => { lead.isNew = false; await persist(); render() }
+            const syncCb = edit.querySelector('[data-a-sync]')
+            if(syncCb){
+              syncCb.addEventListener('change', async () => {
+                lead.advisorData.sameAsLeadGiver = syncCb.checked
+                if(syncCb.checked) lead.advisorData.submittedForName = lead.leadGiverName || ''
+                await persist()
+                render()
+              })
+            }
             edit.querySelectorAll('[data-f]').forEach(el => el.addEventListener('input', async () => {
               const k = el.dataset.f
               if(el.type==='checkbox'){
@@ -778,6 +794,7 @@
       }
     }
     function fromCloudLead(l){
+      const advisor = l.advisor_data ?? l.advisorData ?? {}
       return {
         id: l.id,
         customerName: l.customer_name ?? l.customerName ?? '',
@@ -794,7 +811,23 @@
         contactRecordedAt: l.contact_recorded_at ?? l.contactRecordedAt ?? '',
         status: l.status || 'Információt megkapta',
         statusDate: l.status_date ?? l.statusDate ?? '',
-        advisorData: l.advisor_data ?? l.advisorData ?? {}
+        advisorData: {
+          submittedForName: advisor.submittedForName ?? '',
+          sameAsLeadGiver: advisor.sameAsLeadGiver ?? false,
+          incomeType: advisor.incomeType ?? '',
+          otherLoans: advisor.otherLoans ?? '',
+          creditCardOverdraft: advisor.creditCardOverdraft ?? '',
+          loanAmount: advisor.loanAmount ?? '',
+          term: advisor.term ?? '',
+          installment: advisor.installment ?? '',
+          note: advisor.note ?? '',
+          birthDate: advisor.birthDate ?? '',
+          supportEligibility: advisor.supportEligibility ?? '',
+          purchaseInfo: advisor.purchaseInfo ?? '',
+          ownFunds: advisor.ownFunds ?? '',
+          khrStatus: advisor.khrStatus ?? '',
+          coBorrower: advisor.coBorrower ?? ''
+        }
       }
     }
     function formatCloudError(prefix, error){
