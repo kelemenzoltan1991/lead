@@ -40,6 +40,7 @@ Szükséges táblák:
 A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
 Cloud mentés módja: `upsert` (nem teljes tábla törlés), így elkerülhető a 400-as `id=neq.` hiba.
 Új lead rögzítésénél a rendszer megpróbál email notify hívást küldeni az advisor role-os userek email címeire.
+Admin felületen külön `Teszt email küldés` gombbal is ellenőrizhető a notify csatorna.
 
 Notify function deploy:
 - Kód: `supabase/functions/notify/index.ts`
@@ -59,6 +60,7 @@ Hibaelhárítás:
 ## Lead megjelenítés
 - Kompakt kártyák minden szerepkörnél
 - Kattintásra nyílik a részletes szerkesztés
+- UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
 
 ## Letöltés
 - CSV és JSON export

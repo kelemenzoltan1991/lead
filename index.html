@@ -28,6 +28,10 @@
     .lead-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .lead-item { border:1px solid #d7dfef; border-radius:10px; padding:10px; background:#fff; }
     .lead-item.new { border-color:#dc2626; background:#fff1f2; }
+    .stats { display:grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap:8px; }
+    .stat { background:#eef2ff; border-radius:10px; padding:8px; }
+    .toast { position: fixed; right: 14px; bottom: 14px; background: #111827; color: #fff; padding: 10px 12px; border-radius: 8px; opacity: 0; pointer-events:none; transition: .25s; z-index: 9999; }
+    .toast.show { opacity: 1; }
     table { width:100%; border-collapse: collapse; }
     th,td { border-bottom:1px solid #e5e7eb; padding:8px; text-align:left; }
   </style>
@@ -65,6 +69,7 @@
           <div class="row">
             <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
             <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
+            <button id="testNotifyBtn" type="button" class="warn">Teszt email küldés</button>
           </div>
         </div>
         <p id="cloudMsg" class="muted"></p>
@@ -115,11 +120,23 @@
             <button id="downloadJsonBtn" type="button">JSON</button>
           </div>
         </div>
+        <div class="stats" id="stats"></div>
+        <div class="row">
+          <label>Keresés
+            <input id="searchInput" placeholder="Ügyfél név, telefon, érdeklődés...">
+          </label>
+          <label>Státusz szűrő
+            <select id="statusFilter">
+              <option value="">Összes</option>
+            </select>
+          </label>
+        </div>
         <p class="muted">Kompakt kártyák: kattintásra nyitható részletek.</p>
         <div id="leadList" class="lead-grid"></div>
       </section>
     </section>
   </main>
+  <div id="toast" class="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -146,6 +163,8 @@
     let cloudCfg = loadCloudCfg()
     let supabaseClient = null
     let supabaseSig = ''
+    let searchText = ''
+    let statusFilter = ''
 
     function loadDb(){
       const raw = localStorage.getItem(DB_KEY)
@@ -332,10 +351,60 @@
       }
     }
 
+    async function sendTestNotifyEmail(){
+      try {
+        if(!initSupabase()) return
+        const advisorRes = await supabaseClient.from('users_app').select('email,name').eq('role', 'advisor')
+        if(advisorRes.error) throw advisorRes.error
+        const advisors = (advisorRes.data || []).filter(a => a.email).map(a => ({ email: a.email, name: a.name || '' }))
+        if(!advisors.length) {
+          setCloudMsg('Nincs advisor email cím a users_app táblában, ezért teszt email nem küldhető.')
+          return
+        }
+
+        const endpoint = cloudCfg.notifyUrl || `${cloudCfg.url}/functions/v1/notify`
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: cloudCfg.key,
+            Authorization: `Bearer ${cloudCfg.key}`
+          },
+          body: JSON.stringify({
+            event: 'test_email',
+            advisors,
+            lead: {
+              customerName: 'TESZT LEAD',
+              phone: '-',
+              email: '-',
+              interest: 'Teszt értesítés',
+              leadGiverName: currentUser?.name || 'Rendszer',
+              createdAt: now()
+            }
+          })
+        })
+        if(!res.ok) {
+          setCloudMsg(`Teszt email küldés sikertelen (HTTP ${res.status}).`)
+          return
+        }
+        setCloudMsg(`Teszt email elküldve ${advisors.length} advisor címre.`)
+      } catch (e) {
+        setCloudMsg(`Teszt email hiba: ${e?.message || e}`)
+      }
+    }
+
     function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
+    function showToast(message){
+      const t = byId('toast')
+      t.textContent = message
+      t.classList.add('show')
+      clearTimeout(showToast._timer)
+      showToast._timer = setTimeout(() => t.classList.remove('show'), 1800)
+    }
 
     function init(){
       interests.forEach(i => byId('interest').add(new Option(i, i)))
+      ;[...new Set([...mortgageStatuses, ...otherStatuses])].forEach(s => byId('statusFilter').add(new Option(s, s)))
       byId('sbUrl').value = cloudCfg.url || ''
       byId('sbKey').value = cloudCfg.key || ''
       byId('notifyUrl').value = cloudCfg.notifyUrl || DEFAULT_NOTIFY_URL
@@ -343,6 +412,7 @@
         byId('protocolMsg').textContent = 'Figyelem: file:// módban a böngésző blokkolhatja a felhő kéréseket. Indítsd inkább npm run dev-vel.'
         byId('cloudConnectBtn').disabled = true
         byId('cloudPullBtn').disabled = true
+        byId('testNotifyBtn').disabled = true
       }
       initSupabase()
 
@@ -396,6 +466,7 @@
         }
       }
       byId('cloudPullBtn').onclick = pullCloud
+      byId('testNotifyBtn').onclick = sendTestNotifyEmail
 
       byId('createUserForm').addEventListener('submit', async (e)=>{
         e.preventDefault()
@@ -410,7 +481,7 @@
           password: byId('newPassword').value,
           role: byId('newUserRole').value
         })
-        await persist(); e.target.reset(); render()
+        await persist(); e.target.reset(); render(); showToast('Felhasználó létrehozva.')
       })
 
       byId('leadForm').addEventListener('submit', async (e)=>{
@@ -440,11 +511,13 @@
         db.leads.unshift(newLead)
         await persist()
         await notifyAdvisorsForNewLead(newLead)
-        e.target.reset(); byId('interest').value = interests[0]; render()
+        e.target.reset(); byId('interest').value = interests[0]; render(); showToast('Lead rögzítve.')
       })
 
       byId('downloadCsvBtn').onclick = () => download('csv')
       byId('downloadJsonBtn').onclick = () => download('json')
+      byId('searchInput').oninput = (e) => { searchText = e.target.value.toLowerCase().trim(); renderLeadsCompact() }
+      byId('statusFilter').onchange = (e) => { statusFilter = e.target.value; renderLeadsCompact() }
 
       render()
     }
@@ -523,7 +596,14 @@
 
     function renderLeadsCompact(){
       const list = byId('leadList')
-      const leads = visibleLeads()
+      const allVisible = visibleLeads()
+      const leads = allVisible.filter((l) => {
+        const text = `${l.customerName} ${l.phone} ${l.interest}`.toLowerCase()
+        const textOk = !searchText || text.includes(searchText)
+        const statusOk = !statusFilter || l.status === statusFilter
+        return textOk && statusOk
+      })
+      renderStats(allVisible)
       list.innerHTML = ''
       if(!leads.length){ list.innerHTML = '<p class="muted">Nincs lead.</p>'; return }
 
@@ -608,6 +688,16 @@
 
         list.appendChild(box)
       })
+    }
+
+    function renderStats(leads){
+      const fresh = leads.filter(l => l.isNew).length
+      const suspended = leads.filter(l => l.processSuspended).length
+      byId('stats').innerHTML = `
+        <div class="stat"><b>Összes lead</b><div>${leads.length}</div></div>
+        <div class="stat"><b>Friss lead</b><div>${fresh}</div></div>
+        <div class="stat"><b>Felfüggesztett</b><div>${suspended}</div></div>
+      `
     }
 
     function download(type){
