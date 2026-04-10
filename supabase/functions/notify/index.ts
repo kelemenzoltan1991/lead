@@ -8,6 +8,7 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json()
+    const eventType = payload?.event ?? 'new_lead'
     const advisors = Array.isArray(payload?.advisors) ? payload.advisors : []
     const lead = payload?.lead || {}
 
@@ -25,8 +26,10 @@ Deno.serve(async (req) => {
       return new Response('Missing RESEND_API_KEY or NOTIFY_FROM_EMAIL', { status: 500 })
     }
 
+    const subject = eventType === 'test_email' ? 'Teszt email - Lead rendszer' : 'Új lead érkezett'
+    const title = eventType === 'test_email' ? 'Teszt email érkezett' : 'Új lead érkezett'
     const html = `
-      <h2>Új lead érkezett</h2>
+      <h2>${title}</h2>
       <p><b>Ügyfél:</b> ${lead.customerName ?? ''}</p>
       <p><b>Telefon:</b> ${lead.phone ?? ''}</p>
       <p><b>Email:</b> ${lead.email ?? ''}</p>
@@ -44,7 +47,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM,
         to: recipients,
-        subject: 'Új lead érkezett',
+        subject,
         html
       })
     })

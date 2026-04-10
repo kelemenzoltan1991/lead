@@ -64,6 +64,7 @@ Hibaelhárítás:
 - UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
 - Színvilág: narancs/fekete hangsúlyok (a piros állapotjelzések pirosak maradnak).
 - A lead részleten: „A LEAD [XY] nevén lett beadva” kis mező + checkbox (ha aktív, automatikusan a lead adó nevét tölti be).
+- „Megkeresés eredménye” mező naplózza az eseményeket: beírás + OK után dátum/időbélyeggel listában jelenik meg.
 
 ## Letöltés
 - CSV és JSON export

@@ -516,7 +516,7 @@
           status: 'Információt megkapta',
           statusDate: '',
           advisorData: {
-            submittedForName:'', sameAsLeadGiver:false, incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
+            submittedForName:'', sameAsLeadGiver:false, contactHistory:[], incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
             note:'', birthDate:'', supportEligibility:'', purchaseInfo:'', ownFunds:'', khrStatus:'', coBorrower:''
           }
         }
@@ -666,7 +666,17 @@
               </label>
               <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
               <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
-              <label>Megkeresés eredménye <input data-f="contactResult" value="${escapeHtml(lead.contactResult)}"></label>
+              <label style="grid-column:1/-1;">Megkeresés eredménye
+                <div class="row">
+                  <input data-contact-input placeholder="pl. nem vette fel">
+                  <button type="button" data-add-contact class="secondary" style="width:auto; white-space:nowrap;">OK</button>
+                </div>
+              </label>
+              <div style="grid-column:1/-1;" class="muted">
+                ${(lead.advisorData.contactHistory || []).length
+                  ? (lead.advisorData.contactHistory || []).map(h => `<div>${escapeHtml(h.at)} ${escapeHtml(h.text)}</div>`).join('')
+                  : 'Nincs még rögzített megkeresési eredmény.'}
+              </div>
               <label>Státusz <select data-f="status">${statuses.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
               ${lead.status==='Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-f="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
               <label>Folyamat felfüggesztve <input data-f="processSuspended" type="checkbox" ${lead.processSuspended?'checked':''}></label>
@@ -692,6 +702,21 @@
               syncCb.addEventListener('change', async () => {
                 lead.advisorData.sameAsLeadGiver = syncCb.checked
                 if(syncCb.checked) lead.advisorData.submittedForName = lead.leadGiverName || ''
+                await persist()
+                render()
+              })
+            }
+            const addContactBtn = edit.querySelector('[data-add-contact]')
+            const contactInput = edit.querySelector('[data-contact-input]')
+            if(addContactBtn && contactInput){
+              addContactBtn.addEventListener('click', async () => {
+                const txt = (contactInput.value || '').trim()
+                if(!txt) return
+                lead.advisorData.contactHistory = lead.advisorData.contactHistory || []
+                lead.advisorData.contactHistory.unshift({ at: now(), text: txt })
+                lead.contactResult = txt
+                lead.contactDone = true
+                lead.contactRecordedAt = now()
                 await persist()
                 render()
               })
@@ -819,6 +844,7 @@
         advisorData: {
           submittedForName: advisor.submittedForName ?? '',
           sameAsLeadGiver: advisor.sameAsLeadGiver ?? false,
+          contactHistory: advisor.contactHistory ?? [],
           incomeType: advisor.incomeType ?? '',
           otherLoans: advisor.otherLoans ?? '',
           creditCardOverdraft: advisor.creditCardOverdraft ?? '',
