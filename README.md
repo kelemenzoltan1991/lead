@@ -17,6 +17,7 @@ Indítás:
 
 ## Felhő adatbázis (Supabase)
 > A Felhő adatbázis mezők (URL/Key, Kapcsolódás, Felhőből betöltés) csak **admin** felhasználónak látszanak.
+> A panel admin oldalon összezárható/lenyitható.
 
 A felületen add meg:
 - Supabase URL
@@ -61,6 +62,7 @@ Hibaelhárítás:
 - Kompakt kártyák minden szerepkörnél
 - Kattintásra nyílik a részletes szerkesztés
 - UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
+- Színvilág: narancs/fekete hangsúlyok (a piros állapotjelzések pirosak maradnak).
 
 ## Letöltés
 - CSV és JSON export

@@ -6,7 +6,7 @@
   <title>Lead Manager – Felhő mentés + Admin</title>
   <style>
     :root { font-family: Inter, system-ui, sans-serif; }
-    body { margin: 0; background: #f3f6fb; color: #1f2937; }
+    body { margin: 0; background: #f7f7f7; color: #111111; }
     .wrap { max-width: 1200px; margin: 18px auto; padding: 0 12px 24px; }
     .card { background:#fff; border-radius:12px; padding:12px; margin-bottom:10px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
     .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
@@ -17,19 +17,19 @@
     label { display:grid; gap:4px; font-size: 14px; }
     input, select, textarea, button { width:100%; box-sizing:border-box; font:inherit; padding:8px; border:1px solid #cfd8e3; border-radius:8px; }
     textarea { min-height: 72px; }
-    button { border:0; background:#1d4ed8; color:#fff; cursor:pointer; }
-    button.secondary { background:#475569; }
-    button.warn { background:#a16207; }
+    button { border:0; background:#ff6a00; color:#fff; cursor:pointer; }
+    button.secondary { background:#111111; }
+    button.warn { background:#ff8a00; }
     button.danger { background:#b91c1c; }
     .muted { color:#6b7280; font-size:13px; }
     .badge { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; }
-    .badge.role { background:#e5edff; color:#1e40af; }
+    .badge.role { background:#ffe9d6; color:#9a3f00; }
     .badge.new { background:#fee2e2; color:#991b1b; font-weight:700; }
     .lead-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .lead-item { border:1px solid #d7dfef; border-radius:10px; padding:10px; background:#fff; }
     .lead-item.new { border-color:#dc2626; background:#fff1f2; }
     .stats { display:grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap:8px; }
-    .stat { background:#eef2ff; border-radius:10px; padding:8px; }
+    .stat { background:#fff1e6; border-radius:10px; padding:8px; }
     .toast { position: fixed; right: 14px; bottom: 14px; background: #111827; color: #fff; padding: 10px 12px; border-radius: 8px; opacity: 0; pointer-events:none; transition: .25s; z-index: 9999; }
     .toast.show { opacity: 1; }
     table { width:100%; border-collapse: collapse; }
@@ -59,26 +59,31 @@
       </div>
 
       <section id="cloudSection" class="card">
-        <h2>Felhő adatbázis (Supabase)</h2>
-        <p class="muted">Adj meg Supabase adatokat. Táblák: <b>users_app</b>, <b>leads_app</b>. Mentéskor felhőbe is szinkronizál.</p>
-        <p id="protocolMsg" class="muted"></p>
-        <div class="grid grid-2">
-          <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
-          <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
-          <label style="grid-column: 1 / -1;">Notify endpoint URL (opcionális)<input id="notifyUrl" placeholder="https://.../functions/v1/notify"></label>
-          <div class="row">
-            <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
-            <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
-            <button id="testNotifyBtn" type="button" class="warn">Teszt email küldés</button>
-          </div>
+        <div class="row" style="justify-content: space-between;">
+          <h2>Felhő adatbázis (Supabase)</h2>
+          <button id="cloudToggleBtn" type="button" class="secondary">Összezárás</button>
         </div>
-        <p id="cloudMsg" class="muted"></p>
-        <ul class="muted">
-          <li>Cloud sync-et ne `file:///` módban futtasd; használd: <b>npm run dev</b>.</li>
-          <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
-          <li>Ha HTTP 401 hiba jön: a kulcs/projekt nem stimmel, vagy hiányzik a tábla policy jogosultság.</li>
-          <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
-        </ul>
+        <div id="cloudBody">
+          <p class="muted">Adj meg Supabase adatokat. Táblák: <b>users_app</b>, <b>leads_app</b>. Mentéskor felhőbe is szinkronizál.</p>
+          <p id="protocolMsg" class="muted"></p>
+          <div class="grid grid-2">
+            <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+            <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
+            <label style="grid-column: 1 / -1;">Notify endpoint URL (opcionális)<input id="notifyUrl" placeholder="https://.../functions/v1/notify"></label>
+            <div class="row">
+              <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
+              <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
+              <button id="testNotifyBtn" type="button" class="warn">Teszt email küldés</button>
+            </div>
+          </div>
+          <p id="cloudMsg" class="muted"></p>
+          <ul class="muted">
+            <li>Cloud sync-et ne `file:///` módban futtasd; használd: <b>npm run dev</b>.</li>
+            <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
+            <li>Ha HTTP 401 hiba jön: a kulcs/projekt nem stimmel, vagy hiányzik a tábla policy jogosultság.</li>
+            <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
+          </ul>
+        </div>
       </section>
 
       <section id="adminSection" class="card hidden">
@@ -165,6 +170,7 @@
     let supabaseSig = ''
     let searchText = ''
     let statusFilter = ''
+    let cloudCollapsed = false
 
     function loadDb(){
       const raw = localStorage.getItem(DB_KEY)
@@ -394,6 +400,10 @@
     }
 
     function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
+    function applyCloudCollapse(){
+      byId('cloudBody').style.display = cloudCollapsed ? 'none' : 'block'
+      byId('cloudToggleBtn').textContent = cloudCollapsed ? 'Lenyitás' : 'Összezárás'
+    }
     function showToast(message){
       const t = byId('toast')
       t.textContent = message
@@ -518,6 +528,8 @@
       byId('downloadJsonBtn').onclick = () => download('json')
       byId('searchInput').oninput = (e) => { searchText = e.target.value.toLowerCase().trim(); renderLeadsCompact() }
       byId('statusFilter').onchange = (e) => { statusFilter = e.target.value; renderLeadsCompact() }
+      byId('cloudToggleBtn').onclick = () => { cloudCollapsed = !cloudCollapsed; applyCloudCollapse() }
+      applyCloudCollapse()
 
       render()
     }
