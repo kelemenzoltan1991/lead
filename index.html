@@ -654,12 +654,14 @@
             edit.style.gridColumn = '1 / -1'
             edit.innerHTML = `
               <label style="grid-column:1/-1;" class="inline-note">A LEAD
-                <div class="row" style="align-items:center;">
+                <div class="row" style="align-items:center; flex-wrap:nowrap;">
                   <input data-a="submittedForName" class="small-input" value="${escapeHtml(lead.advisorData.submittedForName)}">
                   <span>nevén lett beadva</span>
-                  <span>(megegyezik a LEAD adóval</span>
-                  <input data-a-sync type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
-                  <span>)</span>
+                  <label style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                    (megegyezik a LEAD adóval
+                    <input data-a-sync type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
+                    )
+                  </label>
                 </div>
               </label>
               <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
