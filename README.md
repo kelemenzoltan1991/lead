@@ -63,7 +63,7 @@ Hibaelhárítás:
 - Kattintásra nyílik a részletes szerkesztés
 - UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
 - Színvilág: narancs/fekete hangsúlyok (a piros állapotjelzések pirosak maradnak).
-- \"Beadva névre\" mező mellett checkbox: ha aktív, automatikusan a lead adó nevét tölti be.
+- A lead részleten: „A LEAD [XY] nevén lett beadva” kis mező + checkbox (ha aktív, automatikusan a lead adó nevét tölti be).
 
 ## Letöltés
 - CSV és JSON export

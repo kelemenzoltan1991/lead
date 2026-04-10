@@ -32,6 +32,8 @@
     .stat { background:#fff1e6; border-radius:10px; padding:8px; }
     .toast { position: fixed; right: 14px; bottom: 14px; background: #111827; color: #fff; padding: 10px 12px; border-radius: 8px; opacity: 0; pointer-events:none; transition: .25s; z-index: 9999; }
     .toast.show { opacity: 1; }
+    .inline-note { font-size: 13px; color:#4b5563; }
+    .small-input { max-width: 170px; padding: 6px 8px; }
     table { width:100%; border-collapse: collapse; }
     th,td { border-bottom:1px solid #e5e7eb; padding:8px; text-align:left; }
   </style>
@@ -651,12 +653,13 @@
             edit.className = 'grid grid-2'
             edit.style.gridColumn = '1 / -1'
             edit.innerHTML = `
-              <label style="grid-column:1/-1;">Beadva névre:
-                <div class="row">
-                  <input data-a="submittedForName" style="max-width:200px;" value="${escapeHtml(lead.advisorData.submittedForName)}">
-                  <span class="muted">(megegyezik a lead adóval</span>
+              <label style="grid-column:1/-1;" class="inline-note">A LEAD
+                <div class="row" style="align-items:center;">
+                  <input data-a="submittedForName" class="small-input" value="${escapeHtml(lead.advisorData.submittedForName)}">
+                  <span>nevén lett beadva</span>
+                  <span>(megegyezik a LEAD adóval</span>
                   <input data-a-sync type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
-                  <span class="muted">)</span>
+                  <span>)</span>
                 </div>
               </label>
               <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
