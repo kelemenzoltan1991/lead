@@ -57,6 +57,7 @@ Hibaelhárítás:
 - `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
 - `Could not find the table 'public.users_app'`: még nincs létrehozva a tábla; futtasd a `supabase/sql/schema.sql` scriptet.
 - `HTTP 400` / `HTTP 409`: frissítsd a `schema.sql`-t és használd a beépített admin felületet user létrehozásra (a mentés upsert alapú).
+- Lead rögzítés után nem megy ki email: deployold újra a `notify` edge functiont (CORS/OPTIONS támogatással), ellenőrizd a `RESEND_API_KEY` és `NOTIFY_FROM_EMAIL` env változókat, valamint hogy van legalább egy advisor email a `users_app` táblában.
 
 ## Lead megjelenítés
 - Kompakt kártyák minden szerepkörnél
