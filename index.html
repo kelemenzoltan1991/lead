@@ -330,7 +330,10 @@
         const advisorRes = await supabaseClient.from('users_app').select('email,name').eq('role', 'advisor')
         if(advisorRes.error) throw advisorRes.error
         const advisors = (advisorRes.data || []).filter(a => a.email).map(a => ({ email: a.email, name: a.name || '' }))
-        if(!advisors.length) return
+        if(!advisors.length) {
+          setCloudMsg('Nincs advisor email cím a users_app táblában, ezért email nem küldhető.')
+          return
+        }
 
         const endpoint = cloudCfg.notifyUrl || `${cloudCfg.url}/functions/v1/notify`
         const res = await fetch(endpoint, {
@@ -353,7 +356,12 @@
             }
           })
         })
-        if(!res.ok) setCloudMsg(`Figyelem: email notify hívás sikertelen (HTTP ${res.status}).`)
+        if(!res.ok){
+          const txt = await res.text()
+          setCloudMsg(`Figyelem: email notify hívás sikertelen (HTTP ${res.status}): ${txt}`)
+          return
+        }
+        setCloudMsg(`Lead értesítő email elküldve ${advisors.length} advisor címre.`)
       } catch (e) {
         setCloudMsg(`Figyelem: email notify hiba: ${e?.message || e}`)
       }
@@ -392,7 +400,8 @@
           })
         })
         if(!res.ok) {
-          setCloudMsg(`Teszt email küldés sikertelen (HTTP ${res.status}).`)
+          const txt = await res.text()
+          setCloudMsg(`Teszt email küldés sikertelen (HTTP ${res.status}): ${txt}`)
           return
         }
         setCloudMsg(`Teszt email elküldve ${advisors.length} advisor címre.`)

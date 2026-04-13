@@ -45,6 +45,7 @@ Admin felületen külön `Teszt email küldés` gombbal is ellenőrizhető a not
 
 Notify function deploy:
 - Kód: `supabase/functions/notify/index.ts`
+- Funkció beállítás: `supabase/config.toml` (`[functions.notify] verify_jwt = false`), mert a kliens anon kulccsal hívja a notify endpointot.
 - Szükséges env:
   - `RESEND_API_KEY`
   - `NOTIFY_FROM_EMAIL`
