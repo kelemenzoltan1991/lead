@@ -335,35 +335,26 @@
           return
         }
 
-        const endpoint = cloudCfg.notifyUrl || `${cloudCfg.url}/functions/v1/notify`
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: cloudCfg.key,
-            Authorization: `Bearer ${cloudCfg.key}`
-          },
-          body: JSON.stringify({
-            event: 'new_lead',
-            advisors,
-            lead: {
-              customerName: lead.customerName,
-              phone: lead.phone,
-              email: lead.email || '',
-              interest: lead.interest,
-              leadGiverName: lead.leadGiverName,
-              createdAt: lead.createdAt
-            }
-          })
+        await callNotify({
+          event: 'new_lead',
+          advisors,
+          lead: {
+            customerName: lead.customerName,
+            phone: lead.phone,
+            email: lead.email || '',
+            interest: lead.interest,
+            leadGiverName: lead.leadGiverName,
+            createdAt: lead.createdAt
+          }
         })
-        if(!res.ok){
-          const txt = await res.text()
-          setCloudMsg(`Figyelem: email notify hívás sikertelen (HTTP ${res.status}): ${txt}`)
-          return
-        }
         setCloudMsg(`Lead értesítő email elküldve ${advisors.length} advisor címre.`)
       } catch (e) {
-        setCloudMsg(`Figyelem: email notify hiba: ${e?.message || e}`)
+        const msg = String(e?.message || e || '')
+        if(msg.toLowerCase().includes('failed to fetch')){
+          setCloudMsg('Email hiba: Failed to fetch. Ellenőrizd a Supabase URL/Notify URL https:// formátumát, a hálózati elérést, valamint hogy a notify function deployolva van.')
+          return
+        }
+        setCloudMsg(`Figyelem: email notify hiba: ${msg}`)
       }
     }
 
@@ -378,35 +369,54 @@
           return
         }
 
-        const endpoint = cloudCfg.notifyUrl || `${cloudCfg.url}/functions/v1/notify`
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: cloudCfg.key,
-            Authorization: `Bearer ${cloudCfg.key}`
-          },
-          body: JSON.stringify({
-            event: 'test_email',
-            advisors,
-            lead: {
-              customerName: 'TESZT LEAD',
-              phone: '-',
-              email: '-',
-              interest: 'Teszt értesítés',
-              leadGiverName: currentUser?.name || 'Rendszer',
-              createdAt: now()
-            }
-          })
+        await callNotify({
+          event: 'test_email',
+          advisors,
+          lead: {
+            customerName: 'TESZT LEAD',
+            phone: '-',
+            email: '-',
+            interest: 'Teszt értesítés',
+            leadGiverName: currentUser?.name || 'Rendszer',
+            createdAt: now()
+          }
         })
-        if(!res.ok) {
-          const txt = await res.text()
-          setCloudMsg(`Teszt email küldés sikertelen (HTTP ${res.status}): ${txt}`)
-          return
-        }
         setCloudMsg(`Teszt email elküldve ${advisors.length} advisor címre.`)
       } catch (e) {
-        setCloudMsg(`Teszt email hiba: ${e?.message || e}`)
+        const msg = String(e?.message || e || '')
+        if(msg.toLowerCase().includes('failed to fetch')){
+          setCloudMsg('Teszt email hiba: Failed to fetch. Ellenőrizd a Supabase URL/Notify URL https:// formátumát, a hálózati elérést, valamint hogy a notify function deployolva van.')
+          return
+        }
+        setCloudMsg(`Teszt email hiba: ${msg}`)
+      }
+    }
+
+    async function callNotify(payload){
+      if(!initSupabase()) throw new Error('Supabase nincs inicializálva.')
+      const defaultEndpoint = `${cloudCfg.url}/functions/v1/notify`
+      const endpoint = (cloudCfg.notifyUrl || defaultEndpoint || '').trim()
+      if(!endpoint) throw new Error('Hiányzó notify endpoint URL.')
+      if(!/^https?:\/\//i.test(endpoint)) throw new Error('A notify endpoint URL legyen teljes https://... cím.')
+
+      if(endpoint === defaultEndpoint){
+        const { error } = await supabaseClient.functions.invoke('notify', { body: payload })
+        if(error) throw new Error(error.message || String(error))
+        return
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: cloudCfg.key,
+          Authorization: `Bearer ${cloudCfg.key}`
+        },
+        body: JSON.stringify(payload)
+      })
+      if(!res.ok){
+        const txt = await res.text()
+        throw new Error(`HTTP ${res.status}: ${txt}`)
       }
     }
 

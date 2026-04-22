@@ -54,6 +54,7 @@ Notify function deploy:
 
 Hibaelhárítás:
 - `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
+- `Teszt email hiba: Failed to fetch`: a `Notify endpoint URL` mező legyen teljes `https://.../functions/v1/notify` cím (vagy hagyd alapértéken), és deployold a `notify` functiont.
 - Ha céges hálózatot/VPN-t használsz, lehet hogy blokkolja a Supabase végpontot.
 - `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
 - `Could not find the table 'public.users_app'`: még nincs létrehozva a tábla; futtasd a `supabase/sql/schema.sql` scriptet.
