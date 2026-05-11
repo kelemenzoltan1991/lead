@@ -28,6 +28,12 @@
     .lead-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .lead-item { border:1px solid #d7dfef; border-radius:10px; padding:10px; background:#fff; }
     .lead-item.new { border-color:#dc2626; background:#fff1f2; }
+    .lead-item.expanded { grid-column: 1 / -1; }
+    .lead-topbar { align-items:flex-start; justify-content:space-between; gap:12px; }
+    .lead-actions { display:flex; align-items:flex-start; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+    .lead-submit-inline { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; color:#4b5563; }
+    .lead-submit-inline input[type="text"] { width:170px; padding:6px 8px; }
+    .lead-submit-inline input[type="checkbox"] { width:auto; }
     .stats { display:grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap:8px; }
     .stat { background:#fff1e6; border-radius:10px; padding:8px; }
     .toast { position: fixed; right: 14px; bottom: 14px; background: #111827; color: #fff; padding: 10px 12px; border-radius: 8px; opacity: 0; pointer-events:none; transition: .25s; z-index: 9999; }
@@ -657,22 +663,55 @@
 
       leads.forEach(lead => {
         const box = document.createElement('article')
-        box.className = `lead-item ${lead.isNew && canEditLead() ? 'new' : ''}`
+        const isExpanded = expandedLeadId === lead.id
+        box.className = `lead-item ${lead.isNew && canEditLead() ? 'new' : ''} ${isExpanded ? 'expanded' : ''}`
+        const submittedForHeader = isExpanded && canEditLead() ? `
+          <div class="lead-submit-inline">
+            <span>A LEAD</span>
+            <input data-submitted-for-name type="text" value="${escapeHtml(lead.advisorData.submittedForName)}">
+            <span>nevén lett beadva</span>
+            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+              (megegyezik a LEAD adóval
+              <input data-a-sync-top type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
+              )
+            </label>
+          </div>
+        ` : ''
         box.innerHTML = `
-          <div class="row" style="justify-content:space-between;">
+          <div class="row lead-topbar">
             <div>
               <b>${escapeHtml(lead.customerName)}</b>
               ${lead.isNew && canEditLead() ? '<span class="badge new">FRISS</span>' : ''}
               <div class="muted">${escapeHtml(lead.interest)}</div>
             </div>
-            <button data-open="${lead.id}" class="secondary">${expandedLeadId===lead.id ? 'Bezárás' : 'Megnyitás'}</button>
+            <div class="lead-actions">
+              ${submittedForHeader}
+              <button data-open="${lead.id}" class="secondary" style="width:auto; white-space:nowrap;">${isExpanded ? 'Bezárás' : 'Megnyitás'}</button>
+            </div>
           </div>
           <div class="muted">Lead adó: ${escapeHtml(lead.leadGiverName)} | Telefon: ${escapeHtml(lead.phone)} | Státusz: ${escapeHtml(lead.status)}</div>
         `
 
-        if(expandedLeadId === lead.id){
+        const submittedForInput = box.querySelector('[data-submitted-for-name]')
+        if(submittedForInput){
+          submittedForInput.addEventListener('input', async () => {
+            lead.advisorData.submittedForName = submittedForInput.value
+            await persist()
+          })
+        }
+        const syncTopCb = box.querySelector('[data-a-sync-top]')
+        if(syncTopCb){
+          syncTopCb.addEventListener('change', async () => {
+            lead.advisorData.sameAsLeadGiver = syncTopCb.checked
+            if(syncTopCb.checked) lead.advisorData.submittedForName = lead.leadGiverName || ''
+            await persist()
+            render()
+          })
+        }
+
+        if(isExpanded){
           const details = document.createElement('div')
-          details.className = 'grid grid-2'
+          details.className = 'grid grid-2 lead-details'
           details.style.marginTop = '8px'
           const statuses = statusOptionsForLead(lead)
           details.innerHTML = `
@@ -727,17 +766,6 @@
             edit.className = 'grid grid-2'
             edit.style.gridColumn = '1 / -1'
             edit.innerHTML = `
-              <label style="grid-column:1/-1;" class="inline-note">A LEAD
-                <div class="row" style="align-items:center; flex-wrap:nowrap;">
-                  <input data-a="submittedForName" class="small-input" value="${escapeHtml(lead.advisorData.submittedForName)}">
-                  <span>nevén lett beadva</span>
-                  <label style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
-                    (megegyezik a LEAD adóval
-                    <input data-a-sync type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
-                    )
-                  </label>
-                </div>
-              </label>
               <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
               <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
               <label>Státusz <select data-f="status">${statuses.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
@@ -760,15 +788,6 @@
             `
 
             edit.querySelector(`[data-mark-open="${lead.id}"]`).onclick = async () => { lead.isNew = false; await persist(); render() }
-            const syncCb = edit.querySelector('[data-a-sync]')
-            if(syncCb){
-              syncCb.addEventListener('change', async () => {
-                lead.advisorData.sameAsLeadGiver = syncCb.checked
-                if(syncCb.checked) lead.advisorData.submittedForName = lead.leadGiverName || ''
-                await persist()
-                render()
-              })
-            }
             edit.querySelectorAll('[data-f]').forEach(el => el.addEventListener('input', async () => {
               const k = el.dataset.f
               if(el.type==='checkbox'){
