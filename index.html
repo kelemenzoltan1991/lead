@@ -28,6 +28,9 @@
     .lead-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .lead-item { border:1px solid #d7dfef; border-radius:10px; padding:10px; background:#fff; }
     .lead-item.new { border-color:#dc2626; background:#fff1f2; }
+    .lead-item.status-funded { border-color:#16a34a; background:#dcfce7; }
+    .lead-item.status-closed { border-color:#9ca3af; background:#f3f4f6; }
+    .lead-item.status-waiting-customer { border-color:#93c5fd; background:#eff6ff; }
     .lead-item.expanded { grid-column: 1 / -1; }
     .lead-topbar { align-items:flex-start; justify-content:space-between; gap:12px; }
     .lead-actions { display:flex; align-items:flex-start; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
@@ -183,6 +186,23 @@
     const statusOptionsForLead = (lead) => {
       const options = statusOptionsForInterest(lead.interest)
       return lead.status && !options.includes(lead.status) ? [lead.status, ...options] : options
+    }
+    const customerWaitingStatuses = ['Telefonon beszéltünk','Ügyfél telefonos kapcsolatfelvétel megtörtént','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti']
+    const fundedStatuses = ['Folyósítás','Hitel folyósítva']
+    const closedStatuses = ['Visszalépett','Elutasított','Hitel folyósítás elutasítva']
+    const leadStatusClass = (lead) => {
+      if(fundedStatuses.includes(lead.status)) return 'status-funded'
+      if(closedStatuses.includes(lead.status)) return 'status-closed'
+      if(customerWaitingStatuses.includes(lead.status)) return 'status-waiting-customer'
+      return ''
+    }
+    const leadCreatedTime = (lead) => {
+      const raw = String(lead.createdAt || '')
+      const parsed = Date.parse(raw)
+      if(!Number.isNaN(parsed)) return parsed
+      const m = raw.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2}))?/)
+      if(m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] || 0)).getTime()
+      return 0
     }
 
     let db = loadDb()
@@ -721,7 +741,7 @@
         const textOk = !searchText || text.includes(searchText)
         const statusOk = !statusFilter || l.status === statusFilter
         return textOk && statusOk
-      })
+      }).sort((a, b) => leadCreatedTime(b) - leadCreatedTime(a))
       renderStats(allVisible)
       list.innerHTML = ''
       if(!leads.length){ list.innerHTML = '<p class="muted">Nincs lead.</p>'; return }
@@ -729,7 +749,7 @@
       leads.forEach(lead => {
         const box = document.createElement('article')
         const isExpanded = expandedLeadId === lead.id
-        box.className = `lead-item ${lead.isNew && canEditLead() ? 'new' : ''} ${isExpanded ? 'expanded' : ''}`
+        box.className = `lead-item ${lead.isNew && canEditLead() ? 'new' : ''} ${leadStatusClass(lead)} ${isExpanded ? 'expanded' : ''}`
         const submittedForHeader = isExpanded && canEditLead() ? `
           <div class="lead-submit-inline">
             <span>A LEAD</span>

@@ -66,6 +66,8 @@ Hibaelhárítás:
 ## Lead megjelenítés
 - Lead küldés után megnyílik egy Outlook/alapértelmezett email piszkozat `Új lead érkezett` tárggyal, a 4 fő lead adattal, advisor és admin címzettekkel.
 - Kompakt kártyák minden szerepkörnél
+- Alapértelmezett sorrend: legújabb lead elöl, legrégebbi lead hátul.
+- Státusz alapú kártyaszínek: folyósított lead zöld, elutasított/visszalépett lead szürke, ügyfélre váró folyamat halványkék.
 - Kattintásra nyílik a részletes szerkesztés
 - UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
 - Színvilág: narancs/fekete hangsúlyok (a piros állapotjelzések pirosak maradnak).
