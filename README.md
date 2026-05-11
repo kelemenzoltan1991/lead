@@ -8,6 +8,7 @@ Indítás:
 - Szerepkörök: `admin`, `advisor`, `lead_giver`
 - Login próbálkozáskor az app automatikusan megpróbál cloud user listát frissíteni, ha helyben nem talál felhasználót.
 - Cloud login során közvetlenül is ellenőriz a `users_app` táblában (`username` + `password`), kis/nagybetű-toleráns felhasználónévvel.
+- Ha a helyi böngészőadatból hiányzik az admin, az app automatikusan visszateszi a demo admint (`admin` / `admin123`), hogy ne zárjon ki a rendszerből.
 - Sikeres login után automatikusan fut egy cloud betöltés (ha elérhető), így az admin/advisor azonnal látja a friss adatokat.
 
 ## Admin funkciók
@@ -59,6 +60,7 @@ Hibaelhárítás:
 - `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
 - `Could not find the table 'public.users_app'`: még nincs létrehozva a tábla; futtasd a `supabase/sql/schema.sql` scriptet.
 - `HTTP 400` / `HTTP 409`: frissítsd a `schema.sql`-t és használd a beépített admin felületet user létrehozásra (a mentés upsert alapú).
+- `Hibás belépési adatok`: próbáld a demo admint (`admin` / `admin123`), vagy futtasd újra a `supabase/sql/seed_admin.sql` scriptet, ha felhős adminnal szeretnél belépni.
 - Lead rögzítés után nem megy ki email: deployold újra a `notify` edge functiont (CORS/OPTIONS támogatással), ellenőrizd a `RESEND_API_KEY` és `NOTIFY_FROM_EMAIL` env változókat, valamint hogy van legalább egy advisor email a `users_app` táblában.
 
 ## Lead megjelenítés

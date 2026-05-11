@@ -195,10 +195,27 @@
     let statusFilter = ''
     let cloudCollapsed = false
 
+    function defaultAdminUser(){
+      return {id:crypto.randomUUID(),name:'Rendszer Admin',email:'admin@local.hu',username:'admin',password:'admin123',role:'admin'}
+    }
+
+    function ensureDefaultAdmin(dbState){
+      dbState.users = Array.isArray(dbState.users) ? dbState.users : []
+      if(!dbState.users.some(u => (u.username || '').trim().toLowerCase() === 'admin')){
+        dbState.users.unshift(defaultAdminUser())
+      }
+      dbState.leads = Array.isArray(dbState.leads) ? dbState.leads : []
+      return dbState
+    }
+
     function loadDb(){
       const raw = localStorage.getItem(DB_KEY)
-      if(raw) return JSON.parse(raw)
-      const seed = { users:[{id:crypto.randomUUID(),name:'Rendszer Admin',email:'admin@local.hu',username:'admin',password:'admin123',role:'admin'}], leads:[] }
+      if(raw){
+        const parsed = ensureDefaultAdmin(JSON.parse(raw))
+        localStorage.setItem(DB_KEY, JSON.stringify(parsed))
+        return parsed
+      }
+      const seed = ensureDefaultAdmin({ users:[], leads:[] })
       localStorage.setItem(DB_KEY, JSON.stringify(seed))
       return seed
     }
@@ -312,37 +329,49 @@
 
     async function refreshUsersFromCloud(){
       try {
-        if(!initSupabase()) return false
+        if(!initSupabase()) return { ok:false, reason:'no_client' }
         const res = await supabaseClient.from('users_app').select('*')
-        if(res.error || !Array.isArray(res.data)) return false
-        if(!res.data.length) return false
+        if(res.error) return { ok:false, reason:res.error.message || String(res.error) }
+        if(!Array.isArray(res.data)) return { ok:false, reason:'invalid_data' }
+        if(!res.data.length) return { ok:false, reason:'empty_users_app' }
         mergeUsersFromCloud(res.data)
+        ensureDefaultAdmin(db)
         saveDbLocal()
-        return true
-      } catch {
-        return false
+        return { ok:true }
+      } catch (e) {
+        return { ok:false, reason:e?.message || String(e) }
       }
     }
 
     async function findCloudUserForLogin(username, password){
       try {
-        if(!initSupabase()) return null
+        if(!initSupabase()) return { user:null, reason:'no_client' }
         let res = await supabaseClient.from('users_app').select('*').eq('username', username).limit(1)
-        if(res.error) return null
+        if(res.error) return { user:null, reason:res.error.message || String(res.error) }
         let row = res.data?.[0]
         if(!row){
           // fallback: case-insensitive username keresés
           res = await supabaseClient.from('users_app').select('*').ilike('username', username).limit(1)
-          if(res.error) return null
+          if(res.error) return { user:null, reason:res.error.message || String(res.error) }
           row = res.data?.[0]
         }
-        if(!row) return null
+        if(!row) return { user:null, reason:'not_found' }
         const mapped = fromCloudUser(row)
-        if((mapped.password || '').trim() !== String(password || '').trim()) return null
-        return mapped
-      } catch {
-        return null
+        if((mapped.password || '').trim() !== String(password || '').trim()) return { user:null, reason:'wrong_password' }
+        return { user:mapped, reason:'' }
+      } catch (e) {
+        return { user:null, reason:e?.message || String(e) }
       }
+    }
+
+    function loginErrorMessage(username, cloudReason){
+      if(location.protocol === 'file:') return 'Hibás belépési adatok. File módban cloud login nem működik; futtasd npm run dev-vel, vagy használd a helyi admin / admin123 belépést.'
+      if(username.toLowerCase() === 'admin') return 'Hibás admin belépés. Alapértelmezett helyi belépés: admin / admin123. Ha felhős admint használsz, futtasd a supabase/sql/seed_admin.sql scriptet vagy ellenőrizd a users_app admin sor password mezőjét.'
+      if(cloudReason === 'empty_users_app') return 'Hibás belépési adatok. A users_app tábla üres; futtasd a supabase/sql/seed_admin.sql scriptet, vagy hozz létre felhasználót admin felületen.'
+      if(cloudReason === 'not_found') return 'Hibás belépési adatok. Nem található ilyen username a users_app táblában.'
+      if(cloudReason === 'wrong_password') return 'Hibás belépési adatok. A username megvan, de a password mező nem egyezik.'
+      if(cloudReason && !['no_client','invalid_data'].includes(cloudReason)) return `Hibás belépés / cloud hiba: ${cloudReason}`
+      return 'Hibás belépési adatok. Ellenőrizd a users_app táblában a username + password mezőt, vagy próbáld: admin / admin123.'
     }
 
     async function notifyAdvisorsForNewLead(lead){
@@ -507,14 +536,18 @@
         e.preventDefault()
         const username = byId('loginUsername').value.trim()
         const password = String(byId('loginPassword').value || '')
+        let cloudReason = ''
         let u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
         if(!u){
           const refreshed = await refreshUsersFromCloud()
-          if(refreshed) u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
+          cloudReason = refreshed.reason || cloudReason
+          if(refreshed.ok) u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
         }
         if(!u){
-          const cloudUser = await findCloudUserForLogin(username, password)
-          if(cloudUser){
+          const cloudResult = await findCloudUserForLogin(username, password)
+          cloudReason = cloudResult.reason || cloudReason
+          if(cloudResult.user){
+            const cloudUser = cloudResult.user
             const idx = db.users.findIndex(x => (x.username || '').toLowerCase() === cloudUser.username.toLowerCase())
             if(idx >= 0) db.users[idx] = cloudUser
             else db.users.push(cloudUser)
@@ -523,11 +556,7 @@
           }
         }
         if(!u){
-          if(location.protocol === 'file:'){
-            byId('loginMsg').textContent='Hibás belépési adatok. File módban cloud login nem működik; futtasd npm run dev-vel.'
-          } else {
-            byId('loginMsg').textContent='Hibás belépési adatok. Ellenőrizd a users_app táblában a username + password mezőt.'
-          }
+          byId('loginMsg').textContent = loginErrorMessage(username, cloudReason)
           return
         }
         setSession(u); byId('loginForm').reset(); byId('loginMsg').textContent=''; render()
