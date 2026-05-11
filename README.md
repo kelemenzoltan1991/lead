@@ -1,5 +1,104 @@
-# Lead CRM – React + Supabase
+# Lead CRM – egyfájlos HTML + felhő mentés
 
-Telepítés: npm i, cp .env.example .env, npm run dev
-DB: futtasd a supabase/sql/schema.sql fájlt.
-Function: supabase/functions/notify/index.ts tartalmát töltsd fel 'notify' néven.
+Indítás:
+- Nyisd meg az `index.html` fájlt böngészőben, vagy futtasd: `npm run dev`
+
+## Bejelentkezés
+- Demo admin: `admin` / `admin123`
+- Szerepkörök: `admin`, `advisor`, `lead_giver`
+- Login próbálkozáskor az app automatikusan megpróbál cloud user listát frissíteni, ha helyben nem talál felhasználót.
+- Cloud login során közvetlenül is ellenőriz a `users_app` táblában (`username` + `password`), kis/nagybetű-toleráns felhasználónévvel.
+- Ha a helyi böngészőadatból hiányzik az admin, az app automatikusan visszateszi a demo admint (`admin` / `admin123`), hogy ne zárjon ki a rendszerből.
+- Sikeres login után automatikusan fut egy cloud betöltés (ha elérhető), így az admin/advisor azonnal látja a friss adatokat.
+
+## Admin funkciók
+- Felhasználó létrehozás (név, email, felhasználónév, jelszó, jogosultság)
+- Felhasználó adatmódosítás (inline szerkesztés + mentés)
+- Felhasználó törlés
+
+## Felhő adatbázis (Supabase)
+> A Felhő adatbázis mezők (URL/Key, Kapcsolódás, Felhőből betöltés) csak **admin** felhasználónak látszanak.
+> A panel admin oldalon összezárható/lenyitható.
+
+A felületen add meg:
+- Supabase URL
+- Supabase Anon vagy Publishable Key (`sb_publishable_...` is jó)
+- Notify endpoint URL (opcionális), alapértelmezésben: `${SUPABASE_URL}/functions/v1/notify`
+
+Megjegyzés:
+- A projekt alapból beégetett Supabase adatokkal indul:
+  - URL: `https://mckusqwbatbehouwiwba.supabase.co`
+  - Key: `sb_publishable_QNIwahIgtsN570YMq670dg_5ibVC-b3`
+- Ha `sb_publishable_...` kulcsot adsz meg és az URL üres, a rendszer megpróbálja automatikusan kitölteni a Supabase URL-t.
+- Cloud sync-hez ne fájlként (`file:///...`) nyisd meg a HTML-t, hanem futtasd: `npm run dev`.
+- `file:///` módnál a cloud gombok le vannak tiltva a böngésző security-origin korlátozás miatt.
+
+Szükséges táblák:
+- `users_app`
+- `leads_app`
+- Táblák és demo policy létrehozás: futtasd a `supabase/sql/schema.sql` fájlt a Supabase SQL Editorban.
+- Admin user seed (`admin` / `admin123`): futtasd a `supabase/sql/seed_admin.sql` fájlt.
+
+A rendszer mentéskor LocalStorage-be és (ha csatlakoztatva van) Supabase felhőbe is szinkronizál.
+Cloud mentés módja: `upsert` (nem teljes tábla törlés), így elkerülhető a 400-as `id=neq.` hiba.
+Új lead rögzítésénél a rendszer megpróbál email notify hívást küldeni az advisor role-os userek email címeire.
+Admin felületen külön `Teszt email küldés` gombbal is ellenőrizhető a notify csatorna.
+
+Notify function deploy:
+- Kód: `supabase/functions/notify/index.ts`
+- Funkció beállítás: `supabase/config.toml` (`[functions.notify] verify_jwt = false`), mert a kliens anon kulccsal hívja a notify endpointot.
+- Szükséges env:
+  - `RESEND_API_KEY`
+  - `NOTIFY_FROM_EMAIL`
+- Deploy példa:
+  - `supabase functions deploy notify`
+
+Hibaelhárítás:
+- `Failed to fetch`: ellenőrizd, hogy a Supabase URL `https://` formátumú, az Anon Key helyes, és van internet-hozzáférés.
+- `Teszt email hiba: Failed to fetch`: a `Notify endpoint URL` mező legyen teljes `https://.../functions/v1/notify` cím (vagy hagyd alapértéken), és deployold a `notify` functiont.
+- Ha céges hálózatot/VPN-t használsz, lehet hogy blokkolja a Supabase végpontot.
+- `HTTP 401`: a kulcs nem az adott projekthez tartozik, vagy a `users_app` / `leads_app` policy-k nem engedik az olvasást/írást.
+- `Could not find the table 'public.users_app'`: még nincs létrehozva a tábla; futtasd a `supabase/sql/schema.sql` scriptet.
+- `HTTP 400` / `HTTP 409`: frissítsd a `schema.sql`-t és használd a beépített admin felületet user létrehozásra (a mentés upsert alapú).
+- `Hibás belépési adatok`: próbáld a demo admint (`admin` / `admin123`), vagy futtasd újra a `supabase/sql/seed_admin.sql` scriptet, ha felhős adminnal szeretnél belépni.
+- Lead rögzítés után nem megy ki email: deployold újra a `notify` edge functiont (CORS/OPTIONS támogatással), ellenőrizd a `RESEND_API_KEY` és `NOTIFY_FROM_EMAIL` env változókat, valamint hogy van legalább egy advisor email a `users_app` táblában.
+
+## Lead megjelenítés
+- Lead küldés után megnyílik egy Outlook/alapértelmezett email piszkozat `Új lead érkezett` tárggyal, a 4 fő lead adattal, advisor és admin címzettekkel.
+- Kompakt kártyák minden szerepkörnél
+- Alapértelmezett sorrend: legújabb lead elöl, legrégebbi lead hátul.
+- Státusz alapú kártyaszínek: folyósított lead zöld, elutasított/visszalépett lead szürke, ügyfélre váró folyamat halványkék.
+- Kattintásra nyílik a részletes szerkesztés
+- UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
+- Színvilág: narancs/fekete hangsúlyok (a piros állapotjelzések pirosak maradnak).
+- A lead részleten: „A LEAD [XY] nevén lett beadva” kis mező + checkbox (ha aktív, automatikusan a lead adó nevét tölti be).
+- „Megkeresés eredménye” napló közös: lead_giver/advisor/admin is láthatja és rögzítheti, a lista mutatja az időpontot és a rögzítő felhasználót/szerepkört.
+
+## Státusz folyamatok
+- Személyi kölcsön / Munkáshitel / Babaváró: `Ügyfél telefonos kapcsolatfelvétel megtörtént`, `LEAD átadva banknak`, `Hitel folyósítva`, `Hitel folyósítás elutasítva`, `Visszalépett`.
+- Számlanyitás / Vállalkozói számlanyitás / Vállalkozói hitel: `Ügyfél telefonos kapcsolatfelvétel megtörtént`, `LEAD átadva banknak`.
+- CSOK Plusz / Szabadfelhasználású jelzáloghitel / Hitelkiváltás (egyhitel) / Falusi CSOK / Építési hitel / jelzálog / Lakáshitel / jelzálog / Otthonstart: `Telefonon beszéltünk`, `Ingatlant keres`, `Adásvételi szerződésre vár`, `Önerőt gyűjti`, `Beadás`, `Befogadás`, `Hiánypótlás`, `Bírálat`, `Jóváhagyás`, `Szerződéskötés`, `Folyósítás`, `Visszalépett`, `Elutasított`, `Nem felelt meg`.
+
+## Letöltés
+- CSV és JSON export
+- Letöltési mappa: böngésző alapértelmezett `Letöltések / Downloads`
+
+## Dokumentáció
+- Részletes specifikáció: `SYSTEM_SPEC_HU.md`
+
+## ZIP csomag készítés
+- Futtasd: `bash scripts/package_zip.sh`
+- Kimenet:
+  - időbélyeges ZIP: `release/lead-manager-YYYYMMDD-HHMMSS.zip`
+  - aktuális ZIP: `release/lead-manager-latest.zip`
+
+### Hol tudod letölteni?
+- A kész fájl itt található a projektben: `release/lead-manager-latest.zip`
+- Terminálból gyors megnyitás/listázás:
+  - `ls -lh release/`
+  - `realpath release/lead-manager-latest.zip`
+
+## Ha nem tudsz telepíteni semmit (céges laptop)
+- Rövid útmutató: `NO_INSTALL_GUIDE_HU.md`
+- Helyi, telepítés nélküli mód: `index.html` dupla katt (felhő sync nélkül)
+- Felhő sync telepítés nélkül: töltsd fel a fájlt HTTPS static hostra (pl. Netlify Drop), és onnan nyisd meg.

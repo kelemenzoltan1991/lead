@@ -1,1 +1,1040 @@
-<!doctype html><html lang='hu'><head><meta charset='UTF-8'/><meta name='viewport' content='width=device-width, initial-scale=1.0'/><title>Lead CRM</title></head><body><div id='root'></div><script type='module' src='/src/main.jsx'></script></body></html>
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Manager – Felhő mentés + Admin</title>
+  <style>
+    :root { font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #f7f7f7; color: #111111; }
+    .wrap { max-width: 1200px; margin: 18px auto; padding: 0 12px 24px; }
+    .card { background:#fff; border-radius:12px; padding:12px; margin-bottom:10px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+    .grid { display:grid; gap:8px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); }
+    .hidden { display:none !important; }
+    label { display:grid; gap:4px; font-size: 14px; }
+    input, select, textarea, button { width:100%; box-sizing:border-box; font:inherit; padding:8px; border:1px solid #cfd8e3; border-radius:8px; }
+    textarea { min-height: 72px; }
+    button { border:0; background:#ff6a00; color:#fff; cursor:pointer; }
+    button.secondary { background:#111111; }
+    button.warn { background:#ff8a00; }
+    button.danger { background:#b91c1c; }
+    .muted { color:#6b7280; font-size:13px; }
+    .badge { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; }
+    .badge.role { background:#ffe9d6; color:#9a3f00; }
+    .badge.new { background:#fee2e2; color:#991b1b; font-weight:700; }
+    .lead-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .lead-item { border:1px solid #d7dfef; border-radius:10px; padding:10px; background:#fff; }
+    .lead-item.new { border-color:#dc2626; background:#fff1f2; }
+    .lead-item.status-funded { border-color:#16a34a; background:#dcfce7; }
+    .lead-item.status-closed { border-color:#9ca3af; background:#f3f4f6; }
+    .lead-item.status-waiting-customer { border-color:#93c5fd; background:#eff6ff; }
+    .lead-item.expanded { grid-column: 1 / -1; }
+    .lead-topbar { align-items:flex-start; justify-content:space-between; gap:12px; }
+    .lead-actions { display:flex; align-items:flex-start; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+    .lead-submit-inline { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; color:#4b5563; }
+    .lead-submit-inline input[type="text"] { width:170px; padding:6px 8px; }
+    .lead-submit-inline input[type="checkbox"] { width:auto; }
+    .stats { display:grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap:8px; }
+    .stat { background:#fff1e6; border-radius:10px; padding:8px; }
+    .toast { position: fixed; right: 14px; bottom: 14px; background: #111827; color: #fff; padding: 10px 12px; border-radius: 8px; opacity: 0; pointer-events:none; transition: .25s; z-index: 9999; }
+    .toast.show { opacity: 1; }
+    .inline-note { font-size: 13px; color:#4b5563; }
+    .small-input { max-width: 170px; padding: 6px 8px; }
+    table { width:100%; border-collapse: collapse; }
+    th,td { border-bottom:1px solid #e5e7eb; padding:8px; text-align:left; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section id="loginSection" class="card">
+      <h1>Belépés</h1>
+      <p class="muted">Demo admin: <b>admin</b> / <b>admin123</b></p>
+      <form id="loginForm" class="grid grid-2">
+        <label>Felhasználónév<input id="loginUsername" required></label>
+        <label>Jelszó<input id="loginPassword" type="password" required></label>
+        <div><button type="submit">Belépés</button></div>
+      </form>
+      <p id="loginMsg" class="muted"></p>
+    </section>
+
+    <section id="appSection" class="hidden">
+      <div class="card row">
+        <div>
+          <h1>Lead Manager</h1>
+          <p class="muted">Bejelentkezve: <b id="whoami"></b> <span id="roleBadge" class="badge role"></span></p>
+        </div>
+        <button id="logoutBtn" class="secondary">Kilépés</button>
+      </div>
+
+      <section id="cloudSection" class="card">
+        <div class="row" style="justify-content: space-between;">
+          <h2>Felhő adatbázis (Supabase)</h2>
+          <button id="cloudToggleBtn" type="button" class="secondary">Összezárás</button>
+        </div>
+        <div id="cloudBody">
+          <p class="muted">Adj meg Supabase adatokat. Táblák: <b>users_app</b>, <b>leads_app</b>. Mentéskor felhőbe is szinkronizál.</p>
+          <p id="protocolMsg" class="muted"></p>
+          <div class="grid grid-2">
+            <label>Supabase URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+            <label>Anon / Publishable Key<input id="sbKey" placeholder="eyJ... vagy sb_publishable_..." ></label>
+            <label style="grid-column: 1 / -1;">Notify endpoint URL (opcionális)<input id="notifyUrl" placeholder="https://.../functions/v1/notify"></label>
+            <div class="row">
+              <button id="cloudConnectBtn" type="button">Kapcsolódás</button>
+              <button id="cloudPullBtn" type="button" class="secondary">Felhőből betöltés</button>
+              <button id="testNotifyBtn" type="button" class="warn">Teszt email küldés</button>
+            </div>
+          </div>
+          <p id="cloudMsg" class="muted"></p>
+          <ul class="muted">
+            <li>Cloud sync-et ne `file:///` módban futtasd; használd: <b>npm run dev</b>.</li>
+            <li>Ha \"Failed to fetch\" hibát kapsz: ellenőrizd a Supabase URL-t (https://...), Anon Key-t és internetkapcsolatot.</li>
+            <li>Ha HTTP 401 hiba jön: a kulcs/projekt nem stimmel, vagy hiányzik a tábla policy jogosultság.</li>
+            <li>A táblák neve pontosan: <b>users_app</b>, <b>leads_app</b>.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="adminSection" class="card hidden">
+        <h2>Admin – felhasználók kezelése</h2>
+        <form id="createUserForm" class="grid grid-3">
+          <label>Név<input id="newUserName" required></label>
+          <label>Email<input id="newUserEmail" type="email" placeholder="nev@pelda.hu"></label>
+          <label>Felhasználónév<input id="newUsername" required></label>
+          <label>Jelszó<input id="newPassword" required></label>
+          <label>Jogosultság
+            <select id="newUserRole">
+              <option value="lead_giver">Lead adó</option>
+              <option value="advisor">Banki tanácsadó</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <div><button type="submit">Felhasználó létrehozása</button></div>
+        </form>
+        <h3>Felhasználók szerkesztése</h3>
+        <table id="usersTable"></table>
+      </section>
+
+      <section id="createLeadSection" class="card hidden">
+        <h2>Új lead (logikai sorrend)</h2>
+        <form id="leadForm" class="grid grid-2">
+          <label>1) Ügyfél neve *<input id="customerName" required></label>
+          <label>2) Telefonszám *<input id="phone" required></label>
+          <label>3) E-mail<input id="email" type="email"></label>
+          <label>4) Érdeklődési kör *<select id="interest"></select></label>
+          <div><button type="submit">Lead küldése</button></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h2 id="listTitle">Leadek</h2>
+          <div class="row">
+            <button id="downloadCsvBtn" type="button">CSV</button>
+            <button id="downloadJsonBtn" type="button">JSON</button>
+          </div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="row">
+          <label>Keresés
+            <input id="searchInput" placeholder="Ügyfél név, telefon, érdeklődés...">
+          </label>
+          <label>Státusz szűrő
+            <select id="statusFilter">
+              <option value="">Összes</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted">Kompakt kártyák: kattintásra nyitható részletek.</p>
+        <div id="leadList" class="lead-grid"></div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const DB_KEY = 'lead_manager_db_v3'
+    const SESSION_KEY = 'lead_manager_session_v3'
+    const CLOUD_KEY = 'lead_manager_cloud_v3'
+    const DEFAULT_SUPABASE_URL = 'https://mckusqwbatbehouwiwba.supabase.co'
+    const DEFAULT_SUPABASE_KEY = 'sb_publishable_QNIwahIgtsN570YMq670dg_5ibVC-b3'
+    const DEFAULT_NOTIFY_URL = `${DEFAULT_SUPABASE_URL}/functions/v1/notify`
+
+    const interests = [
+      'Személyi kölcsön','Lakáshitel / jelzálog','Otthonstart','Munkáshitel','Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel','Babaváró','CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog'
+    ]
+    const simpleBaseStatuses = ['Ügyfél telefonos kapcsolatfelvétel megtörtént','LEAD átadva banknak']
+    const simpleLoanStatuses = [...simpleBaseStatuses,'Hitel folyósítva','Hitel folyósítás elutasítva','Visszalépett']
+    const mortgageStatuses = ['Telefonon beszéltünk','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti','Beadás','Befogadás','Hiánypótlás','Bírálat','Jóváhagyás','Szerződéskötés','Folyósítás','Visszalépett','Elutasított','Nem felelt meg']
+    const simpleLoanInterests = ['Személyi kölcsön','Munkáshitel','Babaváró']
+    const simpleBaseInterests = ['Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel']
+    const mortgageInterests = ['CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog','Lakáshitel / jelzálog','Otthonstart']
+    const allStatuses = [...new Set([...simpleBaseStatuses, ...simpleLoanStatuses, ...mortgageStatuses])]
+
+    const byId = (id) => document.getElementById(id)
+    const now = () => new Date().toLocaleString('hu-HU')
+    const statusOptionsForInterest = (interest) => {
+      if(simpleLoanInterests.includes(interest)) return simpleLoanStatuses
+      if(simpleBaseInterests.includes(interest)) return simpleBaseStatuses
+      if(mortgageInterests.includes(interest)) return mortgageStatuses
+      return allStatuses
+    }
+    const defaultStatusForInterest = (interest) => statusOptionsForInterest(interest)[0] || ''
+    const statusOptionsForLead = (lead) => {
+      const options = statusOptionsForInterest(lead.interest)
+      return lead.status && !options.includes(lead.status) ? [lead.status, ...options] : options
+    }
+    const customerWaitingStatuses = ['Telefonon beszéltünk','Ügyfél telefonos kapcsolatfelvétel megtörtént','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti']
+    const fundedStatuses = ['Folyósítás','Hitel folyósítva']
+    const closedStatuses = ['Visszalépett','Elutasított','Hitel folyósítás elutasítva']
+    const leadStatusClass = (lead) => {
+      if(fundedStatuses.includes(lead.status)) return 'status-funded'
+      if(closedStatuses.includes(lead.status)) return 'status-closed'
+      if(customerWaitingStatuses.includes(lead.status)) return 'status-waiting-customer'
+      return ''
+    }
+    const leadCreatedTime = (lead) => {
+      const raw = String(lead.createdAt || '')
+      const parsed = Date.parse(raw)
+      if(!Number.isNaN(parsed)) return parsed
+      const m = raw.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2}))?/)
+      if(m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] || 0)).getTime()
+      return 0
+    }
+
+    let db = loadDb()
+    let currentUser = loadSession()
+    let expandedLeadId = null
+    let cloudCfg = loadCloudCfg()
+    let supabaseClient = null
+    let supabaseSig = ''
+    let searchText = ''
+    let statusFilter = ''
+    let cloudCollapsed = false
+
+    function defaultAdminUser(){
+      return {id:crypto.randomUUID(),name:'Rendszer Admin',email:'admin@local.hu',username:'admin',password:'admin123',role:'admin'}
+    }
+
+    function ensureDefaultAdmin(dbState){
+      dbState.users = Array.isArray(dbState.users) ? dbState.users : []
+      if(!dbState.users.some(u => (u.username || '').trim().toLowerCase() === 'admin')){
+        dbState.users.unshift(defaultAdminUser())
+      }
+      dbState.leads = Array.isArray(dbState.leads) ? dbState.leads : []
+      return dbState
+    }
+
+    function loadDb(){
+      const raw = localStorage.getItem(DB_KEY)
+      if(raw){
+        const parsed = ensureDefaultAdmin(JSON.parse(raw))
+        localStorage.setItem(DB_KEY, JSON.stringify(parsed))
+        return parsed
+      }
+      const seed = ensureDefaultAdmin({ users:[], leads:[] })
+      localStorage.setItem(DB_KEY, JSON.stringify(seed))
+      return seed
+    }
+    function saveDbLocal(){ localStorage.setItem(DB_KEY, JSON.stringify(db)) }
+    function loadSession(){ const id = localStorage.getItem(SESSION_KEY); return db.users.find(u => u.id===id) || null }
+    function setSession(user){ currentUser=user; user?localStorage.setItem(SESSION_KEY,user.id):localStorage.removeItem(SESSION_KEY) }
+
+    function loadCloudCfg(){
+      const raw = localStorage.getItem(CLOUD_KEY)
+      if(!raw) return {url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_KEY, notifyUrl: DEFAULT_NOTIFY_URL}
+      const parsed = JSON.parse(raw)
+      return {
+        url: parsed.url || DEFAULT_SUPABASE_URL,
+        key: parsed.key || DEFAULT_SUPABASE_KEY,
+        notifyUrl: parsed.notifyUrl || DEFAULT_NOTIFY_URL
+      }
+    }
+    function saveCloudCfg(){ localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCfg)) }
+
+    function initSupabase(){
+      if(location.protocol === 'file:'){
+        setCloudMsg('Cloud mód file:// alatt tiltva. Indítsd a projektet `npm run dev` paranccsal.')
+        return null
+      }
+      const err = validateCloudConfig(cloudCfg)
+      if(err) { setCloudMsg(err); return null }
+      if(!window.supabase?.createClient){ setCloudMsg('A Supabase kliens nem töltődött be.'); return null }
+      const newSig = `${cloudCfg.url}|${cloudCfg.key.trim()}`
+      if(supabaseClient && supabaseSig === newSig) return supabaseClient
+      supabaseClient = window.supabase.createClient(cloudCfg.url, cloudCfg.key.trim(), {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          storageKey: 'lead-manager-noauth'
+        }
+      })
+      supabaseSig = newSig
+      return supabaseClient
+    }
+
+    async function testCloudConnection(){
+      const err = validateCloudConfig(cloudCfg)
+      if(err) throw new Error(err)
+      const probe = await supabaseClient.from('users_app').select('id').limit(1)
+      if(probe.error) throw probe.error
+    }
+
+    function validateCloudConfig(cfg){
+      if(!cfg.key) return 'Adj meg Supabase Anon / Publishable Key értéket.'
+      if(!cfg.url){
+        const inferred = inferUrlFromPublishableKey(cfg.key)
+        if(inferred){
+          cfg.url = inferred
+          byId('sbUrl').value = inferred
+        }
+      }
+      if(!cfg.url) return 'Adj meg Supabase URL-t (vagy használj sb_publishable_... kulcsot, amiből URL következtethető).'
+      if(!/^https:\/\//i.test(cfg.url)) return 'A Supabase URL-nek https:// formátumúnak kell lennie.'
+      return ''
+    }
+
+    function inferUrlFromPublishableKey(key){
+      const m = String(key || '').match(/^sb_publishable_([A-Za-z0-9]+)_/)
+      if(!m) return ''
+      return `https://${m[1]}.supabase.co`
+    }
+
+    async function saveDbCloud(){
+      if(!supabaseClient) return
+      setCloudMsg('Felhő mentés folyamatban...')
+      try {
+        if(db.users.length) {
+          const cloudUsers = db.users.map(toCloudUser)
+          const r1 = await supabaseClient.from('users_app').upsert(cloudUsers, { onConflict: 'username' })
+          if(r1.error) throw r1.error
+        }
+        if(db.leads.length) {
+          const cloudLeads = db.leads.map(toCloudLead)
+          const r2 = await supabaseClient.from('leads_app').upsert(cloudLeads, { onConflict: 'id' })
+          if(r2.error) throw r2.error
+        }
+        setCloudMsg('Felhő mentés kész.')
+      } catch (e) {
+        setCloudMsg(formatCloudError('Felhő mentés', e))
+      }
+    }
+
+    async function pullCloud(){
+      if(!supabaseClient) return setCloudMsg('Előbb kapcsolódj a felhőhöz.')
+      setCloudMsg('Felhőből betöltés...')
+      try {
+        const u = await supabaseClient.from('users_app').select('*')
+        const l = await supabaseClient.from('leads_app').select('*')
+        if(u.error) throw u.error
+        if(l.error) throw l.error
+        mergeUsersFromCloud(u.data || [])
+        mergeLeadsFromCloud(l.data || [])
+        saveDbLocal()
+        setCloudMsg('Felhő adatok betöltve.')
+        render()
+      } catch (e) {
+        setCloudMsg(formatCloudError('Felhő betöltés', e))
+      }
+    }
+
+    async function persist(){
+      saveDbLocal()
+      await saveDbCloud()
+    }
+
+    async function refreshUsersFromCloud(){
+      try {
+        if(!initSupabase()) return { ok:false, reason:'no_client' }
+        const res = await supabaseClient.from('users_app').select('*')
+        if(res.error) return { ok:false, reason:res.error.message || String(res.error) }
+        if(!Array.isArray(res.data)) return { ok:false, reason:'invalid_data' }
+        if(!res.data.length) return { ok:false, reason:'empty_users_app' }
+        mergeUsersFromCloud(res.data)
+        ensureDefaultAdmin(db)
+        saveDbLocal()
+        return { ok:true }
+      } catch (e) {
+        return { ok:false, reason:e?.message || String(e) }
+      }
+    }
+
+    async function findCloudUserForLogin(username, password){
+      try {
+        if(!initSupabase()) return { user:null, reason:'no_client' }
+        let res = await supabaseClient.from('users_app').select('*').eq('username', username).limit(1)
+        if(res.error) return { user:null, reason:res.error.message || String(res.error) }
+        let row = res.data?.[0]
+        if(!row){
+          // fallback: case-insensitive username keresés
+          res = await supabaseClient.from('users_app').select('*').ilike('username', username).limit(1)
+          if(res.error) return { user:null, reason:res.error.message || String(res.error) }
+          row = res.data?.[0]
+        }
+        if(!row) return { user:null, reason:'not_found' }
+        const mapped = fromCloudUser(row)
+        if((mapped.password || '').trim() !== String(password || '').trim()) return { user:null, reason:'wrong_password' }
+        return { user:mapped, reason:'' }
+      } catch (e) {
+        return { user:null, reason:e?.message || String(e) }
+      }
+    }
+
+    function loginErrorMessage(username, cloudReason){
+      if(location.protocol === 'file:') return 'Hibás belépési adatok. File módban cloud login nem működik; futtasd npm run dev-vel, vagy használd a helyi admin / admin123 belépést.'
+      if(username.toLowerCase() === 'admin') return 'Hibás admin belépés. Alapértelmezett helyi belépés: admin / admin123. Ha felhős admint használsz, futtasd a supabase/sql/seed_admin.sql scriptet vagy ellenőrizd a users_app admin sor password mezőjét.'
+      if(cloudReason === 'empty_users_app') return 'Hibás belépési adatok. A users_app tábla üres; futtasd a supabase/sql/seed_admin.sql scriptet, vagy hozz létre felhasználót admin felületen.'
+      if(cloudReason === 'not_found') return 'Hibás belépési adatok. Nem található ilyen username a users_app táblában.'
+      if(cloudReason === 'wrong_password') return 'Hibás belépési adatok. A username megvan, de a password mező nem egyezik.'
+      if(cloudReason && !['no_client','invalid_data'].includes(cloudReason)) return `Hibás belépés / cloud hiba: ${cloudReason}`
+      return 'Hibás belépési adatok. Ellenőrizd a users_app táblában a username + password mezőt, vagy próbáld: admin / admin123.'
+    }
+
+    async function notifyAdvisorsForNewLead(lead){
+      try {
+        if(!initSupabase()) return
+        const advisorRes = await supabaseClient.from('users_app').select('email,name').eq('role', 'advisor')
+        if(advisorRes.error) throw advisorRes.error
+        const advisors = (advisorRes.data || []).filter(a => a.email).map(a => ({ email: a.email, name: a.name || '' }))
+        if(!advisors.length) {
+          setCloudMsg('Nincs advisor email cím a users_app táblában, ezért email nem küldhető.')
+          return
+        }
+
+        await callNotify({
+          event: 'new_lead',
+          advisors,
+          lead: {
+            customerName: lead.customerName,
+            phone: lead.phone,
+            email: lead.email || '',
+            interest: lead.interest,
+            leadGiverName: lead.leadGiverName,
+            createdAt: lead.createdAt
+          }
+        })
+        setCloudMsg(`Lead értesítő email elküldve ${advisors.length} advisor címre.`)
+      } catch (e) {
+        const msg = String(e?.message || e || '')
+        if(msg.toLowerCase().includes('failed to fetch')){
+          setCloudMsg('Email hiba: Failed to fetch. Ellenőrizd a Supabase URL/Notify URL https:// formátumát, a hálózati elérést, valamint hogy a notify function deployolva van.')
+          return
+        }
+        setCloudMsg(`Figyelem: email notify hiba: ${msg}`)
+      }
+    }
+
+    async function sendTestNotifyEmail(){
+      try {
+        if(!initSupabase()) return
+        const advisorRes = await supabaseClient.from('users_app').select('email,name').eq('role', 'advisor')
+        if(advisorRes.error) throw advisorRes.error
+        const advisors = (advisorRes.data || []).filter(a => a.email).map(a => ({ email: a.email, name: a.name || '' }))
+        if(!advisors.length) {
+          setCloudMsg('Nincs advisor email cím a users_app táblában, ezért teszt email nem küldhető.')
+          return
+        }
+
+        await callNotify({
+          event: 'test_email',
+          advisors,
+          lead: {
+            customerName: 'TESZT LEAD',
+            phone: '-',
+            email: '-',
+            interest: 'Teszt értesítés',
+            leadGiverName: currentUser?.name || 'Rendszer',
+            createdAt: now()
+          }
+        })
+        setCloudMsg(`Teszt email elküldve ${advisors.length} advisor címre.`)
+      } catch (e) {
+        const msg = String(e?.message || e || '')
+        if(msg.toLowerCase().includes('failed to fetch')){
+          setCloudMsg('Teszt email hiba: Failed to fetch. Ellenőrizd a Supabase URL/Notify URL https:// formátumát, a hálózati elérést, valamint hogy a notify function deployolva van.')
+          return
+        }
+        setCloudMsg(`Teszt email hiba: ${msg}`)
+      }
+    }
+
+    async function callNotify(payload){
+      if(!initSupabase()) throw new Error('Supabase nincs inicializálva.')
+      const defaultEndpoint = `${cloudCfg.url}/functions/v1/notify`
+      const endpoint = (cloudCfg.notifyUrl || defaultEndpoint || '').trim()
+      if(!endpoint) throw new Error('Hiányzó notify endpoint URL.')
+      if(!/^https?:\/\//i.test(endpoint)) throw new Error('A notify endpoint URL legyen teljes https://... cím.')
+
+      if(endpoint === defaultEndpoint){
+        const { error } = await supabaseClient.functions.invoke('notify', { body: payload })
+        if(error) throw new Error(error.message || String(error))
+        return
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: cloudCfg.key,
+          Authorization: `Bearer ${cloudCfg.key}`
+        },
+        body: JSON.stringify(payload)
+      })
+      if(!res.ok){
+        const txt = await res.text()
+        throw new Error(`HTTP ${res.status}: ${txt}`)
+      }
+    }
+
+    async function getAdvisorAndAdminEmailRecipients(){
+      let users = db.users || []
+      if(initSupabase()){
+        const res = await supabaseClient.from('users_app').select('email,role').in('role', ['advisor', 'admin'])
+        if(!res.error && Array.isArray(res.data)) users = res.data
+      }
+      return [...new Set(users
+        .filter(u => ['advisor','admin'].includes(u.role) && u.email)
+        .map(u => String(u.email).trim())
+        .filter(Boolean)
+      )]
+    }
+
+    async function openOutlookLeadEmailDraft(lead){
+      const recipients = await getAdvisorAndAdminEmailRecipients()
+      if(!recipients.length){
+        showToast('Nincs advisor/admin email cím a címzettekhez.')
+        return
+      }
+      const subject = 'Új lead érkezett'
+      const body = [
+        'Új lead érkezett.',
+        '',
+        `1) Ügyfél neve: ${lead.customerName || '-'}`,
+        `2) Telefonszám: ${lead.phone || '-'}`,
+        `3) E-mail: ${lead.email || '-'}`,
+        `4) Érdeklődési kör: ${lead.interest || '-'}`,
+        '',
+        `Lead adó: ${lead.leadGiverName || '-'}`,
+        `Rögzítve: ${lead.createdAt || '-'}`
+      ].join('\n')
+      const mailto = `mailto:${recipients.map(encodeURIComponent).join(';')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+      window.location.href = mailto
+    }
+
+    function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
+    function applyCloudCollapse(){
+      byId('cloudBody').style.display = cloudCollapsed ? 'none' : 'block'
+      byId('cloudToggleBtn').textContent = cloudCollapsed ? 'Lenyitás' : 'Összezárás'
+    }
+    function showToast(message){
+      const t = byId('toast')
+      t.textContent = message
+      t.classList.add('show')
+      clearTimeout(showToast._timer)
+      showToast._timer = setTimeout(() => t.classList.remove('show'), 1800)
+    }
+
+    function init(){
+      interests.forEach(i => byId('interest').add(new Option(i, i)))
+      allStatuses.forEach(s => byId('statusFilter').add(new Option(s, s)))
+      byId('sbUrl').value = cloudCfg.url || ''
+      byId('sbKey').value = cloudCfg.key || ''
+      byId('notifyUrl').value = cloudCfg.notifyUrl || DEFAULT_NOTIFY_URL
+      if(location.protocol === 'file:') {
+        byId('protocolMsg').textContent = 'Figyelem: file:// módban a böngésző blokkolhatja a felhő kéréseket. Indítsd inkább npm run dev-vel.'
+        byId('cloudConnectBtn').disabled = true
+        byId('cloudPullBtn').disabled = true
+        byId('testNotifyBtn').disabled = true
+      }
+      initSupabase()
+
+      byId('loginForm').addEventListener('submit', async (e)=>{
+        e.preventDefault()
+        const username = byId('loginUsername').value.trim()
+        const password = String(byId('loginPassword').value || '')
+        let cloudReason = ''
+        let u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
+        if(!u){
+          const refreshed = await refreshUsersFromCloud()
+          cloudReason = refreshed.reason || cloudReason
+          if(refreshed.ok) u = db.users.find(x => (x.username || '').trim().toLowerCase()===username.toLowerCase() && String(x.password || '').trim()===password.trim())
+        }
+        if(!u){
+          const cloudResult = await findCloudUserForLogin(username, password)
+          cloudReason = cloudResult.reason || cloudReason
+          if(cloudResult.user){
+            const cloudUser = cloudResult.user
+            const idx = db.users.findIndex(x => (x.username || '').toLowerCase() === cloudUser.username.toLowerCase())
+            if(idx >= 0) db.users[idx] = cloudUser
+            else db.users.push(cloudUser)
+            saveDbLocal()
+            u = cloudUser
+          }
+        }
+        if(!u){
+          byId('loginMsg').textContent = loginErrorMessage(username, cloudReason)
+          return
+        }
+        setSession(u); byId('loginForm').reset(); byId('loginMsg').textContent=''; render()
+        if(location.protocol !== 'file:' && initSupabase()) {
+          pullCloud()
+        }
+      })
+
+      byId('logoutBtn').onclick = () => { setSession(null); render() }
+
+      byId('cloudConnectBtn').onclick = async () => {
+        cloudCfg.url = byId('sbUrl').value.trim().replace(/\/+$/, '')
+        cloudCfg.key = byId('sbKey').value.trim()
+        cloudCfg.notifyUrl = byId('notifyUrl').value.trim() || `${cloudCfg.url}/functions/v1/notify`
+        saveCloudCfg()
+        if(initSupabase()){
+          try {
+            await testCloudConnection()
+            setCloudMsg('Kapcsolódva. Következő mentések felhőbe is mennek.')
+          } catch (e) {
+            setCloudMsg(formatCloudError('Kapcsolódás', e))
+          }
+        }
+      }
+      byId('cloudPullBtn').onclick = pullCloud
+      byId('testNotifyBtn').onclick = sendTestNotifyEmail
+
+      byId('createUserForm').addEventListener('submit', async (e)=>{
+        e.preventDefault()
+        if(currentUser?.role !== 'admin') return
+        const username = byId('newUsername').value.trim()
+        if(db.users.some(u => u.username === username)) return alert('Már létezik ez a felhasználónév.')
+        db.users.push({
+          id: crypto.randomUUID(),
+          name: byId('newUserName').value.trim(),
+          email: byId('newUserEmail').value.trim(),
+          username,
+          password: byId('newPassword').value,
+          role: byId('newUserRole').value
+        })
+        await persist(); e.target.reset(); render(); showToast('Felhasználó létrehozva.')
+      })
+
+      byId('leadForm').addEventListener('submit', async (e)=>{
+        e.preventDefault()
+        if(!currentUser || !['lead_giver','admin'].includes(currentUser.role)) return
+        const newLead = {
+          id: crypto.randomUUID(),
+          customerName: byId('customerName').value.trim(),
+          phone: byId('phone').value.trim(),
+          email: byId('email').value.trim(),
+          interest: byId('interest').value,
+          leadGiverId: currentUser.id,
+          leadGiverName: currentUser.name,
+          createdAt: now(),
+          isNew: true,
+          processSuspended: false,
+          contactDone: false,
+          contactResult: '',
+          contactRecordedAt: '',
+          status: defaultStatusForInterest(byId('interest').value),
+          statusDate: '',
+          advisorData: {
+            submittedForName:'', sameAsLeadGiver:false, contactHistory:[], incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
+            note:'', birthDate:'', supportEligibility:'', purchaseInfo:'', ownFunds:'', khrStatus:'', coBorrower:''
+          }
+        }
+        db.leads.unshift(newLead)
+        await persist()
+        await openOutlookLeadEmailDraft(newLead)
+        await notifyAdvisorsForNewLead(newLead)
+        e.target.reset(); byId('interest').value = interests[0]; render(); showToast('Lead rögzítve.')
+      })
+
+      byId('downloadCsvBtn').onclick = () => download('csv')
+      byId('downloadJsonBtn').onclick = () => download('json')
+      byId('searchInput').oninput = (e) => { searchText = e.target.value.toLowerCase().trim(); renderLeadsCompact() }
+      byId('statusFilter').onchange = (e) => { statusFilter = e.target.value; renderLeadsCompact() }
+      byId('cloudToggleBtn').onclick = () => { cloudCollapsed = !cloudCollapsed; applyCloudCollapse() }
+      applyCloudCollapse()
+
+      render()
+    }
+
+    function visibleLeads(){
+      if(!currentUser) return []
+      if(['admin','advisor'].includes(currentUser.role)) return db.leads
+      return db.leads.filter(l => l.leadGiverId === currentUser.id)
+    }
+    function canEditLead(){ return currentUser && ['admin','advisor'].includes(currentUser.role) }
+
+    function render(){
+      const logged = !!currentUser
+      byId('loginSection').classList.toggle('hidden', logged)
+      byId('appSection').classList.toggle('hidden', !logged)
+      if(!logged) return
+
+      byId('whoami').textContent = `${currentUser.name} (${currentUser.username})`
+      byId('roleBadge').textContent = currentUser.role
+      byId('cloudSection').classList.toggle('hidden', currentUser.role !== 'admin')
+      byId('adminSection').classList.toggle('hidden', currentUser.role !== 'admin')
+      byId('createLeadSection').classList.toggle('hidden', !['lead_giver','admin'].includes(currentUser.role))
+      byId('listTitle').textContent = currentUser.role === 'lead_giver' ? 'Saját leadek' : 'Összes lead'
+
+      renderUsersTable()
+      renderLeadsCompact()
+    }
+
+    function renderUsersTable(){
+      if(currentUser?.role !== 'admin') return
+      const table = byId('usersTable')
+      table.innerHTML = `
+        <thead><tr><th>Név</th><th>Email</th><th>Felhasználónév</th><th>Szerepkör</th><th>Jelszó</th><th>Művelet</th></tr></thead>
+        <tbody>
+          ${db.users.map(u => `
+            <tr>
+              <td><input data-u="name" data-id="${u.id}" value="${escapeHtml(u.name)}"></td>
+              <td><input data-u="email" data-id="${u.id}" value="${escapeHtml(u.email || '')}"></td>
+              <td><input data-u="username" data-id="${u.id}" value="${escapeHtml(u.username)}"></td>
+              <td>
+                <select data-u="role" data-id="${u.id}">
+                  <option value="lead_giver" ${u.role==='lead_giver'?'selected':''}>lead_giver</option>
+                  <option value="advisor" ${u.role==='advisor'?'selected':''}>advisor</option>
+                  <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+                </select>
+              </td>
+              <td><input data-u="password" data-id="${u.id}" value="${escapeHtml(u.password)}"></td>
+              <td>
+                <button class="warn" data-save-user="${u.id}">Mentés</button>
+                ${u.id===currentUser.id ? '' : `<button class="danger" data-del-user="${u.id}">Törlés</button>`}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `
+
+      table.querySelectorAll('[data-save-user]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.saveUser
+          const user = db.users.find(x => x.id===id)
+          if(!user) return
+          table.querySelectorAll(`[data-id="${id}"]`).forEach(el => { user[el.dataset.u] = el.value.trim() })
+          await persist(); render()
+        }
+      })
+
+      table.querySelectorAll('[data-del-user]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.delUser
+          db.users = db.users.filter(u => u.id !== id)
+          db.leads = db.leads.filter(l => l.leadGiverId !== id)
+          await persist(); render()
+        }
+      })
+    }
+
+    function renderLeadsCompact(){
+      const list = byId('leadList')
+      const allVisible = visibleLeads()
+      const leads = allVisible.filter((l) => {
+        const text = `${l.customerName} ${l.phone} ${l.interest}`.toLowerCase()
+        const textOk = !searchText || text.includes(searchText)
+        const statusOk = !statusFilter || l.status === statusFilter
+        return textOk && statusOk
+      }).sort((a, b) => leadCreatedTime(b) - leadCreatedTime(a))
+      renderStats(allVisible)
+      list.innerHTML = ''
+      if(!leads.length){ list.innerHTML = '<p class="muted">Nincs lead.</p>'; return }
+
+      leads.forEach(lead => {
+        const box = document.createElement('article')
+        const isExpanded = expandedLeadId === lead.id
+        box.className = `lead-item ${lead.isNew && canEditLead() ? 'new' : ''} ${leadStatusClass(lead)} ${isExpanded ? 'expanded' : ''}`
+        const submittedForHeader = isExpanded && canEditLead() ? `
+          <div class="lead-submit-inline">
+            <span>A LEAD</span>
+            <input data-submitted-for-name type="text" value="${escapeHtml(lead.advisorData.submittedForName)}">
+            <span>nevén lett beadva</span>
+            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+              (megegyezik a LEAD adóval
+              <input data-a-sync-top type="checkbox" ${lead.advisorData.sameAsLeadGiver ? 'checked' : ''}>
+              )
+            </label>
+          </div>
+        ` : ''
+        box.innerHTML = `
+          <div class="row lead-topbar">
+            <div>
+              <b>${escapeHtml(lead.customerName)}</b>
+              ${lead.isNew && canEditLead() ? '<span class="badge new">FRISS</span>' : ''}
+              <div class="muted">${escapeHtml(lead.interest)}</div>
+            </div>
+            <div class="lead-actions">
+              ${submittedForHeader}
+              <button data-open="${lead.id}" class="secondary" style="width:auto; white-space:nowrap;">${isExpanded ? 'Bezárás' : 'Megnyitás'}</button>
+            </div>
+          </div>
+          <div class="muted">Lead adó: ${escapeHtml(lead.leadGiverName)} | Telefon: ${escapeHtml(lead.phone)} | Státusz: ${escapeHtml(lead.status)}</div>
+        `
+
+        const submittedForInput = box.querySelector('[data-submitted-for-name]')
+        if(submittedForInput){
+          submittedForInput.addEventListener('input', async () => {
+            lead.advisorData.submittedForName = submittedForInput.value
+            await persist()
+          })
+        }
+        const syncTopCb = box.querySelector('[data-a-sync-top]')
+        if(syncTopCb){
+          syncTopCb.addEventListener('change', async () => {
+            lead.advisorData.sameAsLeadGiver = syncTopCb.checked
+            if(syncTopCb.checked) lead.advisorData.submittedForName = lead.leadGiverName || ''
+            await persist()
+            render()
+          })
+        }
+
+        if(isExpanded){
+          const details = document.createElement('div')
+          details.className = 'grid grid-2 lead-details'
+          details.style.marginTop = '8px'
+          const statuses = statusOptionsForLead(lead)
+          details.innerHTML = `
+            <div><b>Email:</b> ${escapeHtml(lead.email || '-')}</div>
+            <div><b>Létrehozva:</b> ${escapeHtml(lead.createdAt)}</div>
+            <div><b>Felfüggesztve:</b> ${lead.processSuspended ? 'Igen' : 'Nem'}</div>
+            <div><b>Megkeresés rögzítve:</b> ${lead.contactRecordedAt ? escapeHtml(lead.contactRecordedAt) : '-'}</div>
+          `
+
+          const contactSection = document.createElement('div')
+          contactSection.className = 'grid'
+          contactSection.style.gridColumn = '1 / -1'
+          contactSection.innerHTML = `
+            <label style="grid-column:1/-1;">Megkeresés eredménye
+              <div class="row">
+                <input data-contact-input placeholder="pl. nem vette fel">
+                <button type="button" data-add-contact class="secondary" style="width:auto; white-space:nowrap;">OK</button>
+              </div>
+            </label>
+            <div style="grid-column:1/-1;" class="muted">
+              ${(lead.advisorData.contactHistory || []).length
+                ? (lead.advisorData.contactHistory || []).map(h => `<div>${escapeHtml(h.at)} - ${escapeHtml(h.byName || 'Ismeretlen')} (${escapeHtml(h.byRole || 'n/a')}): ${escapeHtml(h.text)}</div>`).join('')
+                : 'Nincs még rögzített megkeresési eredmény.'}
+            </div>
+          `
+          const addContactBtn = contactSection.querySelector('[data-add-contact]')
+          const contactInput = contactSection.querySelector('[data-contact-input]')
+          if(addContactBtn && contactInput){
+            addContactBtn.addEventListener('click', async () => {
+              const txt = (contactInput.value || '').trim()
+              if(!txt || !currentUser) return
+              lead.advisorData.contactHistory = lead.advisorData.contactHistory || []
+              const timestamp = now()
+              lead.advisorData.contactHistory.unshift({
+                at: timestamp,
+                text: txt,
+                byUserId: currentUser.id,
+                byName: currentUser.name || currentUser.username || 'Ismeretlen',
+                byRole: currentUser.role || ''
+              })
+              lead.contactResult = txt
+              lead.contactDone = true
+              lead.contactRecordedAt = timestamp
+              await persist()
+              render()
+            })
+          }
+          details.appendChild(contactSection)
+
+          if(canEditLead()){
+            const edit = document.createElement('div')
+            edit.className = 'grid grid-2'
+            edit.style.gridColumn = '1 / -1'
+            edit.innerHTML = `
+              <div><button data-mark-open="${lead.id}">Friss jelölés törlése</button></div>
+              <label>Megkeresés megtörtént <input data-f="contactDone" type="checkbox" ${lead.contactDone?'checked':''}></label>
+              <label>Státusz <select data-f="status">${statuses.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
+              ${lead.status==='Szerződéskötés' ? `<label>Szerződéskötés dátuma <input data-f="statusDate" type="date" value="${lead.statusDate}"></label>` : '<div></div>'}
+              <label>Folyamat felfüggesztve <input data-f="processSuspended" type="checkbox" ${lead.processSuspended?'checked':''}></label>
+
+              <label>Jövedelem és formája <input data-a="incomeType" value="${escapeHtml(lead.advisorData.incomeType)}"></label>
+              <label>Egyéb hitelek <input data-a="otherLoans" value="${escapeHtml(lead.advisorData.otherLoans)}"></label>
+              <label>Hitelkártya/folyószámla <input data-a="creditCardOverdraft" value="${escapeHtml(lead.advisorData.creditCardOverdraft)}"></label>
+              <label>Mekkora hitel kell <input data-a="loanAmount" value="${escapeHtml(lead.advisorData.loanAmount)}"></label>
+              <label>Mekkora futamidő <input data-a="term" value="${escapeHtml(lead.advisorData.term)}"></label>
+              <label>Mekkora törlesztő <input data-a="installment" value="${escapeHtml(lead.advisorData.installment)}"></label>
+              <label>Születési dátum <input data-a="birthDate" type="date" value="${lead.advisorData.birthDate}"></label>
+              <label>Támogatás alkalmasság <input data-a="supportEligibility" value="${escapeHtml(lead.advisorData.supportEligibility)}"></label>
+              <label>Hol vásárol / érték <input data-a="purchaseInfo" value="${escapeHtml(lead.advisorData.purchaseInfo)}"></label>
+              <label>Önerő mértéke <input data-a="ownFunds" value="${escapeHtml(lead.advisorData.ownFunds)}"></label>
+              <label>KHR státusz <input data-a="khrStatus" value="${escapeHtml(lead.advisorData.khrStatus)}"></label>
+              <label>Adóstárs lesz-e <input data-a="coBorrower" value="${escapeHtml(lead.advisorData.coBorrower)}"></label>
+              <label style="grid-column:1/-1;">Megjegyzés <textarea data-a="note">${escapeHtml(lead.advisorData.note)}</textarea></label>
+            `
+
+            edit.querySelector(`[data-mark-open="${lead.id}"]`).onclick = async () => { lead.isNew = false; await persist(); render() }
+            edit.querySelectorAll('[data-f]').forEach(el => el.addEventListener('input', async () => {
+              const k = el.dataset.f
+              if(el.type==='checkbox'){
+                lead[k] = el.checked
+                if(k==='contactDone') lead.contactRecordedAt = el.checked ? now() : ''
+              } else lead[k] = el.value
+              await persist(); render()
+            }))
+            edit.querySelectorAll('[data-a]').forEach(el => el.addEventListener('input', async () => {
+              lead.advisorData[el.dataset.a] = el.value
+              await persist()
+            }))
+            details.appendChild(edit)
+          }
+
+          box.appendChild(details)
+        }
+
+        box.querySelector(`[data-open="${lead.id}"]`).onclick = () => {
+          expandedLeadId = expandedLeadId === lead.id ? null : lead.id
+          render()
+        }
+
+        list.appendChild(box)
+      })
+    }
+
+    function renderStats(leads){
+      const fresh = leads.filter(l => l.isNew).length
+      const suspended = leads.filter(l => l.processSuspended).length
+      byId('stats').innerHTML = `
+        <div class="stat"><b>Összes lead</b><div>${leads.length}</div></div>
+        <div class="stat"><b>Friss lead</b><div>${fresh}</div></div>
+        <div class="stat"><b>Felfüggesztett</b><div>${suspended}</div></div>
+      `
+    }
+
+    function download(type){
+      const data = visibleLeads()
+      if(!data.length) return alert('Nincs letölthető lead.')
+      const stamp = fileDate()
+      if(type==='json') return downloadFile(JSON.stringify(data,null,2), `leadek-${stamp}.json`, 'application/json;charset=utf-8')
+      const rows = data.map(l => ({ ugyfel:l.customerName, lead_ado:l.leadGiverName, telefon:l.phone, email:l.email||'', erdeklodes:l.interest, statusz:l.status, statusz_datum:l.statusDate||'', megkereses:l.contactDone?'igen':'nem', eredmeny:l.contactResult||'' }))
+      const headers = Object.keys(rows[0])
+      const csv = [headers.join(';'), ...rows.map(r => headers.map(h => csvEscape(r[h])).join(';'))].join('\n')
+      downloadFile(csv, `leadek-${stamp}.csv`, 'text/csv;charset=utf-8')
+    }
+
+    function fileDate(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}` }
+    function csvEscape(v){ const t=String(v??''); return /[;"\n]/.test(t) ? `"${t.replaceAll('"','""')}"` : t }
+    function downloadFile(content, name, mime){ const b=new Blob([content],{type:mime}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u) }
+    function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') }
+    function mergeUsersFromCloud(cloudRows){
+      const merged = new Map(db.users.map(u => [String((u.username || '').toLowerCase()), u]))
+      cloudRows.map(fromCloudUser).forEach(u => merged.set(String((u.username || '').toLowerCase()), u))
+      db.users = Array.from(merged.values())
+    }
+    function mergeLeadsFromCloud(cloudRows){
+      const merged = new Map(db.leads.map(l => [l.id, l]))
+      cloudRows.map(fromCloudLead).forEach(l => merged.set(l.id, l))
+      db.leads = Array.from(merged.values())
+    }
+    function toCloudUser(u){
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email || null,
+        username: u.username,
+        password: u.password,
+        role: u.role || 'lead_giver'
+      }
+    }
+    function fromCloudUser(u){
+      return {
+        id: u.id,
+        name: u.name || '',
+        email: u.email || '',
+        username: u.username || '',
+        password: u.password || '',
+        role: u.role || 'lead_giver'
+      }
+    }
+    function toCloudLead(l){
+      return {
+        id: l.id,
+        customer_name: l.customerName || '',
+        phone: l.phone || '',
+        email: l.email || null,
+        interest: l.interest || '',
+        lead_giver_id: l.leadGiverId || null,
+        lead_giver_name: l.leadGiverName || '',
+        created_at: l.createdAt || '',
+        is_new: !!l.isNew,
+        process_suspended: !!l.processSuspended,
+        contact_done: !!l.contactDone,
+        contact_result: l.contactResult || '',
+        contact_recorded_at: l.contactRecordedAt || '',
+        status: l.status || '',
+        status_date: l.statusDate || '',
+        advisor_data: l.advisorData || {}
+      }
+    }
+    function fromCloudLead(l){
+      const advisor = l.advisor_data ?? l.advisorData ?? {}
+      return {
+        id: l.id,
+        customerName: l.customer_name ?? l.customerName ?? '',
+        phone: l.phone || '',
+        email: l.email || '',
+        interest: l.interest || '',
+        leadGiverId: l.lead_giver_id ?? l.leadGiverId ?? '',
+        leadGiverName: l.lead_giver_name ?? l.leadGiverName ?? '',
+        createdAt: l.created_at ?? l.createdAt ?? '',
+        isNew: l.is_new ?? l.isNew ?? true,
+        processSuspended: l.process_suspended ?? l.processSuspended ?? false,
+        contactDone: l.contact_done ?? l.contactDone ?? false,
+        contactResult: l.contact_result ?? l.contactResult ?? '',
+        contactRecordedAt: l.contact_recorded_at ?? l.contactRecordedAt ?? '',
+        status: l.status || defaultStatusForInterest(l.interest),
+        statusDate: l.status_date ?? l.statusDate ?? '',
+        advisorData: {
+          submittedForName: advisor.submittedForName ?? '',
+          sameAsLeadGiver: advisor.sameAsLeadGiver ?? false,
+          contactHistory: advisor.contactHistory ?? [],
+          incomeType: advisor.incomeType ?? '',
+          otherLoans: advisor.otherLoans ?? '',
+          creditCardOverdraft: advisor.creditCardOverdraft ?? '',
+          loanAmount: advisor.loanAmount ?? '',
+          term: advisor.term ?? '',
+          installment: advisor.installment ?? '',
+          note: advisor.note ?? '',
+          birthDate: advisor.birthDate ?? '',
+          supportEligibility: advisor.supportEligibility ?? '',
+          purchaseInfo: advisor.purchaseInfo ?? '',
+          ownFunds: advisor.ownFunds ?? '',
+          khrStatus: advisor.khrStatus ?? '',
+          coBorrower: advisor.coBorrower ?? ''
+        }
+      }
+    }
+    function formatCloudError(prefix, error){
+      if(error?.name === 'AbortError') return `${prefix} hiba: időtúllépés (ellenőrizd a hálózatot és a Supabase URL-t).`
+      if(error instanceof TypeError) return `${prefix} hiba: hálózati elérés sikertelen (Failed to fetch). Ellenőrizd: Supabase URL, Anon Key, internet, tűzfal/VPN.`
+      if(error?.status === 401 || String(error?.message || '').includes('401')) {
+        return `${prefix} hiba: HTTP 401 (jogosultság/kulcs hiba). Ellenőrizd, hogy a kulcs az adott projekthez tartozik, és a users_app / leads_app táblákra vannak policy-k.`
+      }
+      if(error?.status === 400 || String(error?.message || '').includes('400')) {
+        return `${prefix} hiba: HTTP 400 (oszlopnév/adatformátum probléma). Ellenőrizd, hogy a schema.sql legfrissebb verziója van a Supabase-ben.`
+      }
+      if(error?.status === 409 || String(error?.message || '').includes('409')) {
+        return `${prefix} hiba: HTTP 409 (ütközés). Valószínűleg duplikált username vagy rossz onConflict mező.`
+      }
+      if(String(error?.message || '').includes("Could not find the table 'public.users_app'")) {
+        return `${prefix} hiba: hiányzik a public.users_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`
+      }
+      if(String(error?.message || '').includes("Could not find the table 'public.leads_app'")) {
+        return `${prefix} hiba: hiányzik a public.leads_app tábla. Futtasd a supabase/sql/schema.sql fájlt a Supabase SQL Editorban, majd próbáld újra.`
+      }
+      return `${prefix} hiba: ${error?.message || error}`
+    }
+
+    init()
+  </script>
+</body>
+</html>
