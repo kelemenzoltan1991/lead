@@ -121,7 +121,7 @@
           <label>2) Telefonszám *<input id="phone" required></label>
           <label>3) E-mail<input id="email" type="email"></label>
           <label>4) Érdeklődési kör *<select id="interest"></select></label>
-          <div><button type="submit">Lead mentése</button></div>
+          <div><button type="submit">Lead küldése</button></div>
         </form>
       </section>
 
@@ -441,6 +441,41 @@
       }
     }
 
+    async function getAdvisorAndAdminEmailRecipients(){
+      let users = db.users || []
+      if(initSupabase()){
+        const res = await supabaseClient.from('users_app').select('email,role').in('role', ['advisor', 'admin'])
+        if(!res.error && Array.isArray(res.data)) users = res.data
+      }
+      return [...new Set(users
+        .filter(u => ['advisor','admin'].includes(u.role) && u.email)
+        .map(u => String(u.email).trim())
+        .filter(Boolean)
+      )]
+    }
+
+    async function openOutlookLeadEmailDraft(lead){
+      const recipients = await getAdvisorAndAdminEmailRecipients()
+      if(!recipients.length){
+        showToast('Nincs advisor/admin email cím a címzettekhez.')
+        return
+      }
+      const subject = 'Új lead érkezett'
+      const body = [
+        'Új lead érkezett.',
+        '',
+        `1) Ügyfél neve: ${lead.customerName || '-'}`,
+        `2) Telefonszám: ${lead.phone || '-'}`,
+        `3) E-mail: ${lead.email || '-'}`,
+        `4) Érdeklődési kör: ${lead.interest || '-'}`,
+        '',
+        `Lead adó: ${lead.leadGiverName || '-'}`,
+        `Rögzítve: ${lead.createdAt || '-'}`
+      ].join('\n')
+      const mailto = `mailto:${recipients.map(encodeURIComponent).join(';')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+      window.location.href = mailto
+    }
+
     function setCloudMsg(msg){ byId('cloudMsg').textContent = msg }
     function applyCloudCollapse(){
       byId('cloudBody').style.display = cloudCollapsed ? 'none' : 'block'
@@ -562,6 +597,7 @@
         }
         db.leads.unshift(newLead)
         await persist()
+        await openOutlookLeadEmailDraft(newLead)
         await notifyAdvisorsForNewLead(newLead)
         e.target.reset(); byId('interest').value = interests[0]; render(); showToast('Lead rögzítve.')
       })

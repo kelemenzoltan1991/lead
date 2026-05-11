@@ -62,6 +62,7 @@ Hibaelhárítás:
 - Lead rögzítés után nem megy ki email: deployold újra a `notify` edge functiont (CORS/OPTIONS támogatással), ellenőrizd a `RESEND_API_KEY` és `NOTIFY_FROM_EMAIL` env változókat, valamint hogy van legalább egy advisor email a `users_app` táblában.
 
 ## Lead megjelenítés
+- Lead küldés után megnyílik egy Outlook/alapértelmezett email piszkozat `Új lead érkezett` tárggyal, a 4 fő lead adattal, advisor és admin címzettekkel.
 - Kompakt kártyák minden szerepkörnél
 - Kattintásra nyílik a részletes szerkesztés
 - UX extrák: statisztika kártyák, keresés és státusz szűrő, toast visszajelzések.
