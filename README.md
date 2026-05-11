@@ -69,6 +69,11 @@ Hibaelhárítás:
 - A lead részleten: „A LEAD [XY] nevén lett beadva” kis mező + checkbox (ha aktív, automatikusan a lead adó nevét tölti be).
 - „Megkeresés eredménye” napló közös: lead_giver/advisor/admin is láthatja és rögzítheti, a lista mutatja az időpontot és a rögzítő felhasználót/szerepkört.
 
+## Státusz folyamatok
+- Személyi kölcsön / Munkáshitel / Babaváró: `Ügyfél telefonos kapcsolatfelvétel megtörtént`, `LEAD átadva banknak`, `Hitel folyósítva`, `Hitel folyósítás elutasítva`, `Visszalépett`.
+- Számlanyitás / Vállalkozói számlanyitás / Vállalkozói hitel: `Ügyfél telefonos kapcsolatfelvétel megtörtént`, `LEAD átadva banknak`.
+- CSOK Plusz / Szabadfelhasználású jelzáloghitel / Hitelkiváltás (egyhitel) / Falusi CSOK / Építési hitel / jelzálog / Lakáshitel / jelzálog / Otthonstart: `Telefonon beszéltünk`, `Ingatlant keres`, `Adásvételi szerződésre vár`, `Önerőt gyűjti`, `Beadás`, `Befogadás`, `Hiánypótlás`, `Bírálat`, `Jóváhagyás`, `Szerződéskötés`, `Folyósítás`, `Visszalépett`, `Elutasított`, `Nem felelt meg`.
+
 ## Letöltés
 - CSV és JSON export
 - Letöltési mappa: böngésző alapértelmezett `Letöltések / Downloads`

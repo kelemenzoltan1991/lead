@@ -80,8 +80,21 @@ Lead adó által rögzített mezők:
 
 A státuszt a lead adó is látja.
 
-### Jelzálog típusú folyamatnál
-- Információt megkapta
+### Személyi kölcsön / Munkáshitel / Babaváró folyamatnál
+- Ügyfél telefonos kapcsolatfelvétel megtörtént
+- LEAD átadva banknak
+- Hitel folyósítva
+- Hitel folyósítás elutasítva
+- Visszalépett
+
+### Számlanyitás / Vállalkozói számlanyitás / Vállalkozói hitel folyamatnál
+- Ügyfél telefonos kapcsolatfelvétel megtörtént
+- LEAD átadva banknak
+
+### Jelzálog / CSOK / Otthonstart típusú folyamatnál
+Érintett termékek: CSOK Plusz, Szabadfelhasználású jelzáloghitel, Hitelkiváltás (egyhitel), Falusi CSOK, Építési hitel / jelzálog, Lakáshitel / jelzálog, Otthonstart.
+
+- Telefonon beszéltünk
 - Ingatlant keres
 - Adásvételi szerződésre vár
 - Önerőt gyűjti
@@ -95,14 +108,6 @@ A státuszt a lead adó is látja.
 - Visszalépett
 - Elutasított
 - Nem felelt meg
-
-### Egyéb termékeknél
-- Információt megkapta
-- Nem felel meg (KO szűrés alapján)
-- Lead átadva banknak
-- Banki ügyintézés
-- Visszalépett
-- Nem felelt meg banki elutasítás miatt
 
 ## 6) Adatmodell javaslat
 

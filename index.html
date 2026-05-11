@@ -157,12 +157,27 @@
     const interests = [
       'Személyi kölcsön','Lakáshitel / jelzálog','Otthonstart','Munkáshitel','Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel','Babaváró','CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog'
     ]
-    const mortgageStatuses = ['Információt megkapta','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti','Beadás','Befogadás','Hiánypótlás','Bírálat','Jóváhagyás','Szerződéskötés','Folyósítás','Visszalépett','Elutasított','Nem felelt meg']
-    const otherStatuses = ['Információt megkapta','Nem felel meg (KO szűrés)','Lead átadva banknak','Banki ügyintézés','Visszalépett','Nem felelt meg BANK - elutasítva']
+    const simpleBaseStatuses = ['Ügyfél telefonos kapcsolatfelvétel megtörtént','LEAD átadva banknak']
+    const simpleLoanStatuses = [...simpleBaseStatuses,'Hitel folyósítva','Hitel folyósítás elutasítva','Visszalépett']
+    const mortgageStatuses = ['Telefonon beszéltünk','Ingatlant keres','Adásvételi szerződésre vár','Önerőt gyűjti','Beadás','Befogadás','Hiánypótlás','Bírálat','Jóváhagyás','Szerződéskötés','Folyósítás','Visszalépett','Elutasított','Nem felelt meg']
+    const simpleLoanInterests = ['Személyi kölcsön','Munkáshitel','Babaváró']
+    const simpleBaseInterests = ['Számlanyitás','Vállalkozói számlanyitás','Vállalkozói hitel']
+    const mortgageInterests = ['CSOK Plusz','Szabadfelhasználású jelzáloghitel','Hitelkiváltás (egyhitel)','Falusi CSOK','Építési hitel / jelzálog','Lakáshitel / jelzálog','Otthonstart']
+    const allStatuses = [...new Set([...simpleBaseStatuses, ...simpleLoanStatuses, ...mortgageStatuses])]
 
     const byId = (id) => document.getElementById(id)
     const now = () => new Date().toLocaleString('hu-HU')
-    const isMortgage = (v) => /jelzálog|Lakáshitel|Építési/i.test(v)
+    const statusOptionsForInterest = (interest) => {
+      if(simpleLoanInterests.includes(interest)) return simpleLoanStatuses
+      if(simpleBaseInterests.includes(interest)) return simpleBaseStatuses
+      if(mortgageInterests.includes(interest)) return mortgageStatuses
+      return allStatuses
+    }
+    const defaultStatusForInterest = (interest) => statusOptionsForInterest(interest)[0] || ''
+    const statusOptionsForLead = (lead) => {
+      const options = statusOptionsForInterest(lead.interest)
+      return lead.status && !options.includes(lead.status) ? [lead.status, ...options] : options
+    }
 
     let db = loadDb()
     let currentUser = loadSession()
@@ -435,7 +450,7 @@
 
     function init(){
       interests.forEach(i => byId('interest').add(new Option(i, i)))
-      ;[...new Set([...mortgageStatuses, ...otherStatuses])].forEach(s => byId('statusFilter').add(new Option(s, s)))
+      allStatuses.forEach(s => byId('statusFilter').add(new Option(s, s)))
       byId('sbUrl').value = cloudCfg.url || ''
       byId('sbKey').value = cloudCfg.key || ''
       byId('notifyUrl').value = cloudCfg.notifyUrl || DEFAULT_NOTIFY_URL
@@ -532,7 +547,7 @@
           contactDone: false,
           contactResult: '',
           contactRecordedAt: '',
-          status: 'Információt megkapta',
+          status: defaultStatusForInterest(byId('interest').value),
           statusDate: '',
           advisorData: {
             submittedForName:'', sameAsLeadGiver:false, contactHistory:[], incomeType:'', otherLoans:'', creditCardOverdraft:'', loanAmount:'', term:'', installment:'',
@@ -659,7 +674,7 @@
           const details = document.createElement('div')
           details.className = 'grid grid-2'
           details.style.marginTop = '8px'
-          const statuses = isMortgage(lead.interest) ? mortgageStatuses : otherStatuses
+          const statuses = statusOptionsForLead(lead)
           details.innerHTML = `
             <div><b>Email:</b> ${escapeHtml(lead.email || '-')}</div>
             <div><b>Létrehozva:</b> ${escapeHtml(lead.createdAt)}</div>
@@ -872,7 +887,7 @@
         contactDone: l.contact_done ?? l.contactDone ?? false,
         contactResult: l.contact_result ?? l.contactResult ?? '',
         contactRecordedAt: l.contact_recorded_at ?? l.contactRecordedAt ?? '',
-        status: l.status || 'Információt megkapta',
+        status: l.status || defaultStatusForInterest(l.interest),
         statusDate: l.status_date ?? l.statusDate ?? '',
         advisorData: {
           submittedForName: advisor.submittedForName ?? '',
